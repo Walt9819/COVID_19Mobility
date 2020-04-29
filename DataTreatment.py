@@ -1,6 +1,6 @@
 import pandas as pd
 
-path = "D:\\Documentos\\MT\\Mobility\\"
+path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
 
 conf_data = pd.read_csv(path + "Confirmados.csv")
 def_data = pd.read_csv(path + "Defunciones.csv")
