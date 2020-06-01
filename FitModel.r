@@ -2,22 +2,84 @@ library(dplyr)
 library(magrittr)
 library(ggplot2)
 library(EpiEstim)
+library(incidence)
 
 path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
 setwd(path)
+set.seed(1)
 
-data = read.csv(paste0(path, "DataMexico", ".csv"))
-data$Date = as.Date(data$Date)
+mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
+mob <- mob %>% filter(country_region_code == "MX")
+states <- unique(mob$sub_region_1)
+estados <- c("Estados Unidos Mexicanos", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+                                              "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Ciudad de México",
+                                              "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí",
+                                              "Sinaloa", "Sonora", "México", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas")
 
-pdata = data %>% filter(Region == "NACIONAL" & Date >= "2020-02-28")
+for (state in seq(length(states)))
+{
+  mob$sub_region_1[mob$sub_region_1 == states[state]] <- estados[state]
+}
+names(mob) <- c("Country Code", "Country", "State", "SubState", "Date", "RetailRecreation", "GroceryPharmacy", "Parks", "TransitStations", "Workplaces", "Residential")
+mob <- mob %>% select(Date, State, RetailRecreation, GroceryPharmacy, Parks, TransitStations, Workplaces, Residential)
+Dates <- c(min(mob$Date), max(mob$Date))
 
-d <- data.frame("dates" = pdata$Date, "I" = pdata$Cases)
+file.entidades <- read.csv(paste0(path, "entidades.csv"))
+totdata <- read.csv(paste0(path, "TotalMX.csv"))
+totdata$FECHA_ACTUALIZACION = as.Date(totdata$FECHA_ACTUALIZACION)
+totdata$FECHA_INGRESO = as.Date(totdata$FECHA_INGRESO)
+totdata$FECHA_SINTOMAS = as.Date(totdata$FECHA_SINTOMAS)
+ndat <- totdata %>% group_by(FECHA_SINTOMAS, ENTIDAD_RES) %>% filter(RESULTADO == 1 & FECHA_SINTOMAS >= Dates[1] & FECHA_SINTOMAS <= Dates[2]) %>% summarise("I" = n()) %>% select(FECHA_SINTOMAS, ENTIDAD_RES, I)
+ndat <- ndat %>% filter(ENTIDAD_RES <= 32)
+
+days <- seq(as.Date(Dates[1]), as.Date(Dates[2]), 1)
+for (enti in seq(length(unique(ndat$ENTIDAD_RES))))
+{
+  days0 <- days[!(days %in% (ndat$FECHA_SINTOMAS[ndat$ENTIDAD_RES == file.entidades[enti, 1]]))]
+  tmp.ndat <- data.frame(FECHA_SINTOMAS = days0, ENTIDAD_RES = file.entidades[enti, 1], I = 0)
+  ndat <- rbind(ndat, tmp.ndat)
+  rm(tmp.ndat, days0)
+}
+
+for (enti in seq(length(unique(ndat$ENTIDAD_RES))))
+  ndat$ENTIDAD_RES[ndat$ENTIDAD_RES == file.entidades[enti, 1]] <- file.entidades[enti, 2]
+
+ndat <- as.data.frame(rbind(ndat, data.frame(ndat %>% group_by(FECHA_SINTOMAS) %>% summarise("I" = sum(I)), ENTIDAD_RES = "Estados Unidos Mexicanos")))
+names(ndat) <- c("Date", "State", "I")
+
+###############################################################
+mobData <- merge(ndat, mob, by = c("Date", "State"))
+###############################################################
+
+slideMean <- function(data, window){
+  total <- length(data)
+  remain <- mod(total, window) - 1
+  spots <- seq(from=1, to=total-window, by=window)
+  result <- vector(length = total)
+  for(i in spots){
+    result[i:(i+window-1)] <- mean(data[i:(i+window-1)])
+  }
+  if (remain >= 0)
+    result[(total-remain):total] <- mean(data[(total-remain):total])
+  return(result)
+}
+
+## Select State ##
+mobData %>% select("State") %>% unique()
+state <- "Ciudad de México"
+d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
+
+plot(as.incidence(d$I))
+
+
+##########################################
+#### R(t) inference from data ############
 ##########################################
 #-------------------------Control-------------------------------------------
 #Considerando la ultima ventana de 7 dias
-t_start <- c(2, 25, nrow(d)-7)
-t_end <- c(24, nrow(d)-8, nrow(d))
-
+sinceQuarintine <- as.numeric(as.Date("2020-03-23") - as.Date(Dates[1]))
+t_start <- c(2, sinceQuarintine, nrow(d)-7)
+t_end <- c(sinceQuarintine - 1, nrow(d)-8, nrow(d))
 
 #Parametros de distribucion Gamma a priori
 #------Parametros de Nishiura
@@ -26,7 +88,6 @@ sd_nish<-2.9
 #------Parametros de Du
 mean_du<-3.96
 sd_du<-4.75
-
 
 #--------------------------Control---------------------------------------
 #Funcion para estimar R_t con ventanas disjuntas
@@ -43,7 +104,6 @@ fun.estim_rts_control<-function(d,t_st,t_e,mean_gamma,sd_gamma)
   return(rts_control)
 }
 
-pdf("NewResults.pdf")
 rts_control_nish=fun.estim_rts_control(d, t_start, t_end, mean_nish, sd_nish)
 plot(rts_control_nish, "R")+
   geom_hline(aes(yintercept = 1), color = "red", lty = 2)
@@ -52,13 +112,16 @@ rts_control_du=fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du)
 plot(rts_control_du, "R")+
   geom_hline(aes(yintercept = 1), color = "red", lty = 2)
 
+
 #--------------------------Uncertain---------------------------------------
-config_nish <- make_config(list(mean_si = 4.7, std_mean_si = 1,
+config_nish <- make_config(list(t_start = t_start, t_end = t_end,
+                                mean_si = 4.7, std_mean_si = 1,
                                 min_mean_si = 3.1, max_mean_si = 6.3,
                                 std_si = 2.9, std_std_si = 0.5,
                                 min_std_si = 1.4, max_std_si = 4.4))
 
-config_du <- make_config(list(mean_si = 3.96, std_mean_si = 1,
+config_du <- make_config(list(t_start = t_start, t_end = t_end,
+                              mean_si = 3.96, std_mean_si = 1,
                               min_mean_si = 2.36, max_mean_si = 5.56,
                               std_si = 4.75, std_std_si = 0.5,
                               min_std_si = 3.25, max_std_si = 6.25))
@@ -66,7 +129,7 @@ config_du <- make_config(list(mean_si = 3.96, std_mean_si = 1,
 #Funcion para estimar R_t con ventanas disjuntas
 fun.estim_rts_uncertain<-function(data,config_gamma)
 { rts_uncertain <- estimate_R(data,
-                              data, method = "uncertain_si",
+                              method = "uncertain_si",
                               config = config_gamma)
   return(rts_uncertain)
 }
@@ -76,33 +139,3 @@ plot(rts_uncertain_nish, legend = TRUE)
 
 rts_uncertain_du=fun.estim_rts_uncertain(d,config_du)
 plot(rts_uncertain_du, legend = TRUE)
-
-barplot(d$I, names.arg = d$dates)
-dev.off()
-
-#### R0 approach ####
-#library(R0)
-#selectedD <- pdata %>% transmute(Cases) %>% unlist() %>% as.character() %>% as.numeric()
-#names(selectedD) <- pdata$Date
-
-#GT.covid<-generation.time("gamma", c(5.07, 2.21))
-#estR0.TD <- est.R0.TD(selectedD, GT.covid, t = names(selectedD), time.step=1, nsim=500)
-#fix(estR0.TD)
-#plot(estR0.TD)
-#pdata$R0 = unname(estR0.TD$R)
-
-#lm.fit <- lm(R0 ~ Residential, data = pdata)
-#summary(lm.fit)
-# 1. Open jpeg file
-#jpeg(paste0(path, "rplot.jpg"), width = 350, height = 350)
-# 2. Create the plot
-#plot(pdata$Residential, pdata$R0, xlab="Residential %", ylab="R(t)")
-#abline(lm.fit, col="blue")
-# 3. Close the file
-#dev.off()
-
-#ggplot(pdata, aes(x=Date)) +
-#  geom_point(aes(y = Cases), color = "darkred") +
-#  geom_point(aes(y = Residential), color="steelblue")
-
-#estimateR0 <- estimate.R(newNCD[54:length(newNCD)], GT.covid, begin=1, end=60, methods=c("EG", "ML", "TD", "AR", "SB"), pop.size=1e+06, nsim=100)
