@@ -77,7 +77,7 @@ mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 
 ## Select State ##
 mobData %>% select("State") %>% unique() %>% as.character() ##all states list
-state <- "Estados Unidos Mexicanos"
+state <- "Querétaro"
 d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
 
 plot(as.incidence(d$I))
@@ -109,7 +109,6 @@ dev.off()
 png(paste0(path, "DataPCA.jpg"))
 plot(d * Eigen$vectors[1,])
 dev.off()
-
 
 
 ##########################################
@@ -166,7 +165,9 @@ config_du <- make_config(list(t_start = t_start, t_end = t_end,
                               min_std_si = 3.25, max_std_si = 6.25))
 
 #--------------------------Evaluar R(t)---------------------------------------
-rts_control_nish=fun.estim_rts_control(d, t_start, t_end, mean_nish, sd_nish)
+d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
+
+rts_control_nish=fun.estim_rts_control(d, mean_nish, sd_nish)
 plot(rts_control_nish, "R")+
   geom_hline(aes(yintercept = 1), color = "red", lty = 2)
 
