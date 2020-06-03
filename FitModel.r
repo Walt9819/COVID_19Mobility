@@ -66,11 +66,35 @@ slideMean <- function(data, window){
 
 ## Select State ##
 mobData %>% select("State") %>% unique()
-state <- "Ciudad de México"
+state <- "Querétaro"
 d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
 
 plot(as.incidence(d$I))
 
+mobA <- read.csv(paste0(path, "GlobalMobilityApple.csv"))
+names(mobA)
+mobA <- mobA %>% filter(region == "Mexico" | (country == "Mexico")) %>% filter(transportation_type == "driving")
+mobAMX <- mobA %>% filter(geo_type %in% c("sub-region", "country/region") | region == "Mexico City")
+mobAMX <- mobAMX %>% select(-c(geo_type, transportation_type, alternative_name, sub.region, country))
+mobAMX$region <- c("Estados Unidos Mexicanos", "Ciudad de México", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+                    "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
+                    "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí",
+                    "Sinaloa", "Sonora", "México", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas")
+
+names(mobAMX)[2:length(names(mobAMX))] <- sub("X", "", names(mobAMX)[2:length(names(mobAMX))])
+mobDriv <- data.frame()
+for (state in seq(nrow(mobAMX)))
+{
+  tmp.mobA <- data.frame(State = mobAMX$region[state], Date = names(mobAMX)[2:length(names(mobAMX))], Driving = as.numeric(mobAMX[state, 2:length(mobAMX)]))
+  tmp.mobA$driving[tmp.mobA$dates %in% c("11.05.2020", "12.05.2020")] <- mean(tmp.mobA$driving[tmp.mobA$dates %in% c("09.05.2020", "10.05.2020", "13.05.2020", "14.05.2020")])
+  mobDriv <- rbind(mobDriv, tmp.mobA)
+  rm(tmp.mobA)
+}
+mobDriv$Date <- as.Date(mobDriv$Date, format="%d.%m.%Y")
+
+###############################################################
+mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
+###############################################################
 
 ##########################################
 #### R(t) inference from data ############
