@@ -51,28 +51,7 @@ names(ndat) <- c("Date", "State", "I")
 mobData <- merge(ndat, mob, by = c("Date", "State"))
 ###############################################################
 
-slideMean <- function(data, window){
-  total <- length(data)
-  remain <- mod(total, window) - 1
-  spots <- seq(from=1, to=total-window, by=window)
-  result <- vector(length = total)
-  for(i in spots){
-    result[i:(i+window-1)] <- mean(data[i:(i+window-1)])
-  }
-  if (remain >= 0)
-    result[(total-remain):total] <- mean(data[(total-remain):total])
-  return(result)
-}
-
-## Select State ##
-mobData %>% select("State") %>% unique()
-state <- "Querétaro"
-d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
-
-plot(as.incidence(d$I))
-
 mobA <- read.csv(paste0(path, "GlobalMobilityApple.csv"))
-names(mobA)
 mobA <- mobA %>% filter(region == "Mexico" | (country == "Mexico")) %>% filter(transportation_type == "driving")
 mobAMX <- mobA %>% filter(geo_type %in% c("sub-region", "country/region") | region == "Mexico City")
 mobAMX <- mobAMX %>% select(-c(geo_type, transportation_type, alternative_name, sub.region, country))
@@ -86,7 +65,7 @@ mobDriv <- data.frame()
 for (state in seq(nrow(mobAMX)))
 {
   tmp.mobA <- data.frame(State = mobAMX$region[state], Date = names(mobAMX)[2:length(names(mobAMX))], Driving = as.numeric(mobAMX[state, 2:length(mobAMX)]))
-  tmp.mobA$driving[tmp.mobA$dates %in% c("11.05.2020", "12.05.2020")] <- mean(tmp.mobA$driving[tmp.mobA$dates %in% c("09.05.2020", "10.05.2020", "13.05.2020", "14.05.2020")])
+  tmp.mobA$Driving[tmp.mobA$Date %in% c("11.05.2020", "12.05.2020")] <- mean(tmp.mobA$Driving[tmp.mobA$Date %in% c("09.05.2020", "10.05.2020", "13.05.2020", "14.05.2020")])
   mobDriv <- rbind(mobDriv, tmp.mobA)
   rm(tmp.mobA)
 }
@@ -96,24 +75,47 @@ mobDriv$Date <- as.Date(mobDriv$Date, format="%d.%m.%Y")
 mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 ###############################################################
 
+## Select State ##
+mobData %>% select("State") %>% unique() %>% as.character() ##all states list
+state <- "Estados Unidos Mexicanos"
+d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
+
+plot(as.incidence(d$I))
+
+##########################################
+############ PCA Analysis ################
+##########################################
+
+# libreria
+library(matlib)
+# datos
+d <- mobData %>% filter(State == state) %>% select(-c(Date, I, State))
+d[is.na(d)] <- 0
+
+# covarianza
+Σ = cov(d)
+Eigen = eigen(Σ)
+Eigen$values/sum(Eigen$values)
+Eigen$vectors[1, ] ###Principal componet
+
+
+params.pca <- prcomp(d, center = TRUE,scale. = TRUE)
+summary(params.pca) ###Same results as before
+
+## Plot mobility data before and after PCA ##
+png(paste0(path, "Data.jpg"))
+plot(d)
+dev.off()
+png(paste0(path, "DataPCA.jpg"))
+plot(d * Eigen$vectors[1,])
+dev.off()
+
+
+
 ##########################################
 #### R(t) inference from data ############
 ##########################################
-#-------------------------Control-------------------------------------------
-#Considerando la ultima ventana de 7 dias
-sinceQuarintine <- as.numeric(as.Date("2020-03-23") - as.Date(Dates[1]))
-t_start <- c(2, sinceQuarintine, nrow(d)-7)
-t_end <- c(sinceQuarintine - 1, nrow(d)-8, nrow(d))
-
-#Parametros de distribucion Gamma a priori
-#------Parametros de Nishiura
-mean_nish<-4.7
-sd_nish<-2.9
-#------Parametros de Du
-mean_du<-3.96
-sd_du<-4.75
-
-#--------------------------Control---------------------------------------
+#-------------------------Funciones-------------------------------------------
 #Funcion para estimar R_t con ventanas disjuntas
 fun.estim_rts_control<-function(d,t_st,t_e,mean_gamma,sd_gamma)
 {
@@ -128,14 +130,27 @@ fun.estim_rts_control<-function(d,t_st,t_e,mean_gamma,sd_gamma)
   return(rts_control)
 }
 
-rts_control_nish=fun.estim_rts_control(d, t_start, t_end, mean_nish, sd_nish)
-plot(rts_control_nish, "R")+
-  geom_hline(aes(yintercept = 1), color = "red", lty = 2)
+#Funcion para estimar R_t con ventanas disjuntas
+fun.estim_rts_uncertain<-function(data,config_gamma)
+{ rts_uncertain <- estimate_R(data,
+                              method = "uncertain_si",
+                              config = config_gamma)
+  return(rts_uncertain)
+}
 
-rts_control_du=fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du)
-plot(rts_control_du, "R")+
-  geom_hline(aes(yintercept = 1), color = "red", lty = 2)
+#-------------------------Parámetros-------------------------------------------
+#Considerando la ultima ventana de 7 dias
+sinceQuarintine <- as.numeric(as.Date("2020-03-23") - as.Date(Dates[1]))
+t_start <- c(2, sinceQuarintine, nrow(d)-7)
+t_end <- c(sinceQuarintine - 1, nrow(d)-8, nrow(d))
 
+#Parametros de distribucion Gamma a priori
+#------Parametros de Nishiura
+mean_nish<-4.7
+sd_nish<-2.9
+#------Parametros de Du
+mean_du<-3.96
+sd_du<-4.75
 
 #--------------------------Uncertain---------------------------------------
 config_nish <- make_config(list(t_start = t_start, t_end = t_end,
@@ -150,13 +165,15 @@ config_du <- make_config(list(t_start = t_start, t_end = t_end,
                               std_si = 4.75, std_std_si = 0.5,
                               min_std_si = 3.25, max_std_si = 6.25))
 
-#Funcion para estimar R_t con ventanas disjuntas
-fun.estim_rts_uncertain<-function(data,config_gamma)
-{ rts_uncertain <- estimate_R(data,
-                              method = "uncertain_si",
-                              config = config_gamma)
-  return(rts_uncertain)
-}
+#--------------------------Evaluar R(t)---------------------------------------
+rts_control_nish=fun.estim_rts_control(d, t_start, t_end, mean_nish, sd_nish)
+plot(rts_control_nish, "R")+
+  geom_hline(aes(yintercept = 1), color = "red", lty = 2)
+
+rts_control_du=fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du)
+plot(rts_control_du, "R")+
+  geom_hline(aes(yintercept = 1), color = "red", lty = 2)
+
 
 rts_uncertain_nish=fun.estim_rts_uncertain(d,config_nish)
 plot(rts_uncertain_nish, legend = TRUE)
