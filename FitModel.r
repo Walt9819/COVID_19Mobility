@@ -3,11 +3,8 @@ library(magrittr)
 library(ggplot2)
 library(EpiEstim)
 library(incidence)
-
-path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
-setwd(path)
+path = "Data/"
 set.seed(1)
-
 mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
 mob <- mob %>% filter(country_region_code == "MX")
 states <- unique(mob$sub_region_1)
@@ -15,11 +12,16 @@ estados <- c("Estados Unidos Mexicanos", "Aguascalientes", "Baja California", "B
                                               "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Ciudad de México",
                                               "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí",
                                               "Sinaloa", "Sonora", "México", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas")
+mob$date <- as.Date(mob$date, format="%Y-%m-%d")
 
-for (state in seq(length(states)))
-{
-  mob$sub_region_1[mob$sub_region_1 == states[state]] <- estados[state]
+
+for (state in seq(length(states))){
+    mob$sub_region_1[mob$sub_region_1 == states[state]] <- estados[state]
 }
+
+
+
+
 names(mob) <- c("Country Code", "Country", "State", "SubState", "Date", "RetailRecreation", "GroceryPharmacy", "Parks", "TransitStations", "Workplaces", "Residential")
 mob <- mob %>% select(Date, State, RetailRecreation, GroceryPharmacy, Parks, TransitStations, Workplaces, Residential)
 Dates <- c(min(mob$Date), max(mob$Date))
@@ -33,8 +35,7 @@ ndat <- totdata %>% group_by(FECHA_SINTOMAS, ENTIDAD_RES) %>% filter(RESULTADO =
 ndat <- ndat %>% filter(ENTIDAD_RES <= 32)
 
 days <- seq(as.Date(Dates[1]), as.Date(Dates[2]), 1)
-for (enti in seq(length(unique(ndat$ENTIDAD_RES))))
-{
+for (enti in seq(length(unique(ndat$ENTIDAD_RES)))){
   days0 <- days[!(days %in% (ndat$FECHA_SINTOMAS[ndat$ENTIDAD_RES == file.entidades[enti, 1]]))]
   tmp.ndat <- data.frame(FECHA_SINTOMAS = days0, ENTIDAD_RES = file.entidades[enti, 1], I = 0)
   ndat <- rbind(ndat, tmp.ndat)
