@@ -1,19 +1,24 @@
 library(dplyr)
+library(tibble)
 library(magrittr)
 library(ggplot2)
 library(EpiEstim)
 library(incidence)
+install.packages("plyr")
+library(plyr)
 path = "Data/"
 set.seed(1)
 mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
 mob <- mob %>% filter(country_region_code == "MX")
 states <- unique(mob$sub_region_1)
 estados <- c("Estados Unidos Mexicanos", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
-                                              "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Ciudad de México",
-                                              "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí",
-                                              "Sinaloa", "Sonora", "México", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas")
+                                              "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Ciudad de Mexico",
+                                              "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
+                                              "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas")
+mob$sub_region_1 <- as.character(mob$sub_region_1)
+#mob$sub_region_1 <- enc2utf8(mob$sub_region_1)
 mob$date <- as.Date(mob$date, format="%Y-%m-%d")
-
+nrow(mob)
 
 for (state in seq(length(states))){
     mob$sub_region_1[mob$sub_region_1 == states[state]] <- estados[state]
@@ -25,9 +30,17 @@ for (state in seq(length(states))){
 names(mob) <- c("Country Code", "Country", "State", "SubState", "Date", "RetailRecreation", "GroceryPharmacy", "Parks", "TransitStations", "Workplaces", "Residential")
 mob <- mob %>% select(Date, State, RetailRecreation, GroceryPharmacy, Parks, TransitStations, Workplaces, Residential)
 Dates <- c(min(mob$Date), max(mob$Date))
-
-file.entidades <- read.csv(paste0(path, "entidades.csv"))
+file.entidades <- data.frame(id = c(seq(1, 32), 36, 97, 98, 99), entidad = c("Aguascalientes", "Baja California", "Baja California Sur", "Campeche","Coahuila", "Colima",
+                                              "Chiapas", "Chihuahua", "Ciudad de Mexico", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
+                                              "Mexico", "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
+                                              "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan",
+                                              "Zacatecas", "Estados Unidos Mexicanos", "No aplica",
+                                              "Se ignora", "No Especificado"))
+#file.entidades <- read.csv(paste0(path, "entidades.csv"))
+file.entidades$entidad <- as.character(file.entidades$entidad)
+#file.entidades$entidad <- enc2utf8(file.entidades$entidad)
 totdata <- read.csv(paste0(path, "TotalMX.csv"))
+
 totdata$FECHA_ACTUALIZACION = as.Date(totdata$FECHA_ACTUALIZACION)
 totdata$FECHA_INGRESO = as.Date(totdata$FECHA_INGRESO)
 totdata$FECHA_SINTOMAS = as.Date(totdata$FECHA_SINTOMAS)
@@ -37,17 +50,18 @@ ndat <- ndat %>% filter(ENTIDAD_RES <= 32)
 days <- seq(as.Date(Dates[1]), as.Date(Dates[2]), 1)
 for (enti in seq(length(unique(ndat$ENTIDAD_RES)))){
   days0 <- days[!(days %in% (ndat$FECHA_SINTOMAS[ndat$ENTIDAD_RES == file.entidades[enti, 1]]))]
-  tmp.ndat <- data.frame(FECHA_SINTOMAS = days0, ENTIDAD_RES = file.entidades[enti, 1], I = 0)
-  ndat <- rbind(ndat, tmp.ndat)
-  rm(tmp.ndat, days0)
+  tmp.ndat <- data.frame(FECHA_SINTOMAS = days0, ENTIDAD_RES = file.entidades[enti, 1], I = as.integer(0))
+  tmp.ndat <- as.data.frame(tmp.ndat)
+  ndat <- rbind(as.data.frame(ndat), tmp.ndat)
 }
 
-for (enti in seq(length(unique(ndat$ENTIDAD_RES))))
+for (enti in seq(length(unique(ndat$ENTIDAD_RES)))){
   ndat$ENTIDAD_RES[ndat$ENTIDAD_RES == file.entidades[enti, 1]] <- file.entidades[enti, 2]
-
+}
 ndat <- as.data.frame(rbind(ndat, data.frame(ndat %>% group_by(FECHA_SINTOMAS) %>% summarise("I" = sum(I)), ENTIDAD_RES = "Estados Unidos Mexicanos")))
 names(ndat) <- c("Date", "State", "I")
 
+mob %>% select(State) %>% unique()
 ###############################################################
 mobData <- merge(ndat, mob, by = c("Date", "State"))
 ###############################################################
@@ -56,10 +70,10 @@ mobA <- read.csv(paste0(path, "GlobalMobilityApple.csv"))
 mobA <- mobA %>% filter(region == "Mexico" | (country == "Mexico")) %>% filter(transportation_type == "driving")
 mobAMX <- mobA %>% filter(geo_type %in% c("sub-region", "country/region") | region == "Mexico City")
 mobAMX <- mobAMX %>% select(-c(geo_type, transportation_type, alternative_name, sub.region, country))
-mobAMX$region <- c("Estados Unidos Mexicanos", "Ciudad de México", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+mobAMX$region <- c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
                     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
-                    "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí",
-                    "Sinaloa", "Sonora", "México", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas")
+                    "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
+                    "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas")
 
 names(mobAMX)[2:length(names(mobAMX))] <- sub("X", "", names(mobAMX)[2:length(names(mobAMX))])
 mobDriv <- data.frame()
@@ -70,34 +84,28 @@ for (state in seq(nrow(mobAMX)))
   mobDriv <- rbind(mobDriv, tmp.mobA)
   rm(tmp.mobA)
 }
-mobDriv$Date <- as.Date(mobDriv$Date, format="%d.%m.%Y")
-
+mobDriv$Date <- as.Date(mobDriv$Date, format="%Y.%m.%d")
+mobDriv$Driving <- mobDriv$Driving - 100
 ###############################################################
 mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 ###############################################################
 
 ## Select State ##
 mobData %>% select("State") %>% unique() %>% as.character() ##all states list
-state <- "Querétaro"
-d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
+state <- "Queretaro"
 
-plot(as.incidence(d$I))
+
 
 ##########################################
 ############ PCA Analysis ################
 ##########################################
 
 # libreria
-library(matlib)
+
 # datos
 d <- mobData %>% filter(State == state) %>% select(-c(Date, I, State))
 d[is.na(d)] <- 0
 
-# covarianza
-Σ = cov(d)
-Eigen = eigen(Σ)
-Eigen$values/sum(Eigen$values)
-Eigen$vectors[1, ] ###Principal componet
 
 
 params.pca <- prcomp(d, center = TRUE,scale. = TRUE)
