@@ -4,8 +4,9 @@ library(ggplot2)
 library(EpiEstim)
 library(incidence)
 
-path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
-setwd(path)
+
+path = "Data/"
+
 set.seed(1)
 
 mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
@@ -15,6 +16,9 @@ estados <- c("Estados Unidos Mexicanos", "Aguascalientes", "Baja California", "B
                                               "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Ciudad de México",
                                               "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí",
                                               "Sinaloa", "Sonora", "México", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas")
+mob$sub_region_1 <- as.character(mob$sub_region_1)
+mob$sub_region_1 <- enc2utf8(mob$sub_region_1)
+mob$date <- as.Date(mob$date, format="%Y-%m-%d")
 
 for (state in seq(length(states)))
 {
@@ -26,18 +30,21 @@ Dates <- c(min(mob$Date), max(mob$Date))
 
 file.entidades <- read.csv(paste0(path, "entidades.csv"))
 totdata <- read.csv(paste0(path, "TotalMX.csv"))
-totdata$FECHA_ACTUALIZACION = as.Date(totdata$FECHA_ACTUALIZACION)
-totdata$FECHA_INGRESO = as.Date(totdata$FECHA_INGRESO)
-totdata$FECHA_SINTOMAS = as.Date(totdata$FECHA_SINTOMAS)
+totdata$FECHA_ACTUALIZACION = as.Date(totdata$FECHA_ACTUALIZACION, format="%Y-%m-%d")
+totdata$FECHA_INGRESO = as.Date(totdata$FECHA_INGRESO, format="%Y-%m-%d")
+totdata$FECHA_SINTOMAS = as.Date(totdata$FECHA_SINTOMAS, format="%Y-%m-%d")
 ndat <- totdata %>% group_by(FECHA_SINTOMAS, ENTIDAD_RES) %>% filter(RESULTADO == 1 & FECHA_SINTOMAS >= Dates[1] & FECHA_SINTOMAS <= Dates[2]) %>% summarise("I" = n()) %>% select(FECHA_SINTOMAS, ENTIDAD_RES, I)
 ndat <- ndat %>% filter(ENTIDAD_RES <= 32)
-
 days <- seq(as.Date(Dates[1]), as.Date(Dates[2]), 1)
+
+file.entidades$entidad <- as.character(file.entidades$entidad)
+
 for (enti in seq(length(unique(ndat$ENTIDAD_RES))))
 {
   days0 <- days[!(days %in% (ndat$FECHA_SINTOMAS[ndat$ENTIDAD_RES == file.entidades[enti, 1]]))]
-  tmp.ndat <- data.frame(FECHA_SINTOMAS = days0, ENTIDAD_RES = file.entidades[enti, 1], I = 0)
-  ndat <- rbind(ndat, tmp.ndat)
+  tmp.ndat <- data.frame(FECHA_SINTOMAS = as.Date(days0), ENTIDAD_RES = file.entidades[enti, 1], I = as.integer(0))
+  tmp.ndat <- as.data.frame(tmp.ndat)
+  ndat <- rbind(as.data.frame(ndat), tmp.ndat)
   rm(tmp.ndat, days0)
 }
 
