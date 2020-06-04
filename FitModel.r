@@ -69,23 +69,29 @@ for (state in seq(nrow(mobAMX)))
   mobDriv <- rbind(mobDriv, tmp.mobA)
   rm(tmp.mobA)
 }
-mobDriv$Date <- as.Date(mobDriv$Date, format="%d.%m.%Y")
+mobDriv$Date <- as.Date(mobDriv$Date, format="%Y.%m.%d")
+mobDriv$Driving <- mobDriv$Driving - 100
 
 ###############################################################
 mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 ###############################################################
 
+################################################################################
+########### NOW All DATA IS IN ONE DATAFRAME (mobData) #########################
+################################################################################
+
 ## Select State ##
 mobData %>% select("State") %>% unique() %>% as.character() ##all states list
 state <- "Querétaro"
-d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
 
+d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
 plot(as.incidence(d$I))
 
 ##########################################
 ############ PCA Analysis ################
 ##########################################
 
+#################### METHOD 1 (Eigen method) ###############
 # libreria
 library(matlib)
 # datos
@@ -98,9 +104,10 @@ Eigen = eigen(Σ)
 Eigen$values/sum(Eigen$values)
 Eigen$vectors[1, ] ###Principal componet
 
-
+#################### METHOD 2 (DataCamp) ###############
 params.pca <- prcomp(d, center = TRUE,scale. = TRUE)
 summary(params.pca) ###Same results as before
+
 
 ## Plot mobility data before and after PCA ##
 png(paste0(path, "Data.jpg"))
