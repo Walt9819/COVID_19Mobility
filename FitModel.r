@@ -5,7 +5,6 @@ library(EpiEstim)
 library(incidence)
 library(zoo)
 
-
 path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
 setwd(path)
 set.seed(1)
@@ -67,7 +66,7 @@ mobDriv <- data.frame()
 for (state in seq(nrow(mobAMX)))
 {
   tmp.mobA <- data.frame(State = mobAMX$region[state], Date = names(mobAMX)[2:length(names(mobAMX))], Driving = as.numeric(mobAMX[state, 2:length(mobAMX)]))
-  tmp.mobA$Driving[tmp.mobA$Date %in% c("11.05.2020", "12.05.2020")] <- mean(tmp.mobA$Driving[tmp.mobA$Date %in% c("09.05.2020", "10.05.2020", "13.05.2020", "14.05.2020")])
+  tmp.mobA$Driving[tmp.mobA$Date %in% c("2020.05.11", "2020.05.12")] <- mean(tmp.mobA$Driving[tmp.mobA$Date %in% c("2020.05.09", "2020.05.10", "2020.05.13", "2020.05.14")])
   mobDriv <- rbind(mobDriv, tmp.mobA)
   rm(tmp.mobA)
 }
@@ -77,7 +76,7 @@ mobDriv$Driving <- mobDriv$Driving - 100
 ###############################################################
 mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 ###############################################################
-mobData <- na.locf(mobData, fromLast = TRUE)
+mobData <- na.approx(mobData, fromLast = TRUE)
 
 ################################################################################
 ########### NOW All DATA IS IN ONE DATAFRAME (mobData) #########################
