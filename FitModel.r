@@ -101,19 +101,25 @@ mobData %>% select("State") %>% unique() %>% as.character() ##all states list
 #################### METHOD 1 (Eigen method) ###############
 # datos
 
+params <-  matrix(, nrow=3, byrow=TRUE)
 
-params <- c()
+d <- mobData %>% filter(State == "Querétaro") %>% select(-c(Date, I, State))
+d[is.na(d)] <- 0
+a <- prcomp(d, center = TRUE,scale. = TRUE)
+summary(a)
 
 
 for (state in estados)
 {
   d <- mobData %>% filter(State == state) %>% select(-c(Date, I, State))
   d[is.na(d)] <- 0
-  params <- c(params, prcomp(d, center = TRUE,scale. = TRUE))
+  a <- prcomp(d, center = TRUE,scale. = TRUE)
+  params[state] <- a
 }
 
-names(params) <- estados
 
+
+summary(params["Querétaro"])
 
 
 
