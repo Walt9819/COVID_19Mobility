@@ -1,10 +1,10 @@
 library(dplyr)
-library(tibble)
 library(magrittr)
 library(ggplot2)
 library(EpiEstim)
 library(incidence)
 
+path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
 path = "Data/"
 set.seed(1)
 mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
@@ -17,7 +17,6 @@ estados <- c("Estados Unidos Mexicanos", "Aguascalientes", "Baja California", "B
 mob$sub_region_1 <- as.character(mob$sub_region_1)
 #mob$sub_region_1 <- enc2utf8(mob$sub_region_1)
 mob$date <- as.Date(mob$date, format="%Y-%m-%d")
-nrow(mob)
 
 for (state in seq(length(states))){
     mob$sub_region_1[mob$sub_region_1 == states[state]] <- estados[state]
@@ -89,6 +88,8 @@ mobDriv$Driving <- mobDriv$Driving - 100
 mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 ###############################################################
 
+mobData[is.na(mobData)] <- 0
+
 ## Select State ##
 mobData %>% select("State") %>% unique() %>% as.character() ##all states list
 state <- "Queretaro"
@@ -114,9 +115,28 @@ PoV.states <- data.frame(PoV = c(0), entidad = c("Estados Unidos Mexicanos", "Ci
                     "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
                     "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas"))
 
+
+####################### Maybe #########################################################
+PoV.states$entidad <- as.character(PoV.states$entidad)                                #
+for(i in seq(length(PoV.states$entidad))){                                            #
+  var1 <- mobData %>% filter(State == PoV.states[i, 2]) %>% select(-c(Date,I,State))  #
+  ## var1[is.na(d)] <- 0 ¿¿¿ Para qué es esto ??? Chequen línea 92                    #
+  pca.var1 = prcomp(var1, center = TRUE, scale. = TRUE)                               #
+  PoV <- pca.var1$sdev^2/sum(pca.var1$sdev^2) ##tiene dimension N = 7 (todos los PCA) #
+  PoV.states[i,1] = PoV[1] ##agarramos únicamente el primero                          #
+}                                                                                     #                                                                                    #
+##################### Looks nice to me ################################################
+ggplot(PoV.states, aes(x = entidad, y = PoV)) +                                       #
+    geom_point(position = position_dodge(width = 0.4)) +                              #
+    ylim(0, 1) + theme(axis.text.x = element_text(angle = 90, hjust = 1))             #
+                                                                                      #
+#######################################################################################
+
+
+########### Sorry, aquí está también lo que tenían, por si acaso ################
 while(i<=33){
   var1 <- mobData %>% filter(State == (as.character(PoV.states[i,2]))) %>% select(-c(Date,I,State))
-  var1[is.na(d)] <- 0
+  var1[is.na(var1)] <- 0
   pca.var1 = prcomp(var1, center = TRUE, scale. = TRUE)
   PoV <- pca.var1$sdev^2/sum(pca.var1$sdev^2)
   PoV.states[i,1] = PoV
