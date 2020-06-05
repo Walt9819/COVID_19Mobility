@@ -3,6 +3,8 @@ library(magrittr)
 library(ggplot2)
 library(EpiEstim)
 library(incidence)
+library(zoo)
+
 
 path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
 setwd(path)
@@ -75,6 +77,7 @@ mobDriv$Driving <- mobDriv$Driving - 100
 ###############################################################
 mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 ###############################################################
+mobData <- na.locf(mobData, fromLast = TRUE)
 
 ################################################################################
 ########### NOW All DATA IS IN ONE DATAFRAME (mobData) #########################
