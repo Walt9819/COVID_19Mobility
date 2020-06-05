@@ -3,6 +3,7 @@ library(magrittr)
 library(ggplot2)
 library(EpiEstim)
 library(incidence)
+library(zoo) ##importar la librería, por favor ;)
 
 path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
 path = "Data/"
@@ -34,6 +35,7 @@ file.entidades <- data.frame(id = c(seq(1, 32), 36, 97, 98, 99), entidad = c("Ag
                                               "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan",
                                               "Zacatecas", "Estados Unidos Mexicanos", "No aplica",
                                               "Se ignora", "No Especificado"))
+
 #file.entidades <- read.csv(paste0(path, "entidades.csv"))
 file.entidades$entidad <- as.character(file.entidades$entidad)
 #file.entidades$entidad <- enc2utf8(file.entidades$entidad)
@@ -78,7 +80,7 @@ mobDriv <- data.frame()
 for (state in seq(nrow(mobAMX)))
 {
   tmp.mobA <- data.frame(State = mobAMX$region[state], Date = names(mobAMX)[2:length(names(mobAMX))], Driving = as.numeric(mobAMX[state, 2:length(mobAMX)]))
-  tmp.mobA$Driving[tmp.mobA$Date %in% c("11.05.2020", "12.05.2020")] <- mean(tmp.mobA$Driving[tmp.mobA$Date %in% c("09.05.2020", "10.05.2020", "13.05.2020", "14.05.2020")])
+  tmp.mobA$Driving[tmp.mobA$Date %in% c("2020.05.11", "2020.05.12")] <- mean(tmp.mobA$Driving[tmp.mobA$Date %in% c("2020.05.09", "2020.05.10", "2020.05.13", "2020.05.14")])
   mobDriv <- rbind(mobDriv, tmp.mobA)
   rm(tmp.mobA)
 }
@@ -87,13 +89,12 @@ mobDriv$Driving <- mobDriv$Driving - 100
 ###############################################################
 mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 ###############################################################
-
-mobData[is.na(mobData)] <- 0
+mobData <- na.approx(mobData, fromLast = TRUE) ##solución posible (aunque ya corregí y no debe de haber NA's)
+#mobData[is.na(mobData)] <- 0 #no muy profesional (ni útil)
 
 ## Select State ##
 mobData %>% select("State") %>% unique() %>% as.character() ##all states list
 state <- "Queretaro"
-
 
 
 ##########################################
