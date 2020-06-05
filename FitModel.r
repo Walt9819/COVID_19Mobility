@@ -89,40 +89,37 @@ mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 
 ## Select State ##
 mobData %>% select("State") %>% unique() %>% as.character() ##all states list
-state <- "Querétaro"
 
-d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
-plot(as.incidence(d$I))
+
+# d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
+# plot(as.incidence(d$I))
 
 ##########################################
 ############ PCA Analysis ################
 ##########################################
 
 #################### METHOD 1 (Eigen method) ###############
-# libreria
-library(matlib)
 # datos
-d <- mobData %>% filter(State == state) %>% select(-c(Date, I, State))
-d[is.na(d)] <- 0
 
-# covarianza
-Σ = cov(d)
-Eigen = eigen(Σ)
-Eigen$values/sum(Eigen$values)
-Eigen$vectors[1, ] ###Principal componet
+
+params <- c()
+
+
+for (state in estados)
+{
+  d <- mobData %>% filter(State == state) %>% select(-c(Date, I, State))
+  d[is.na(d)] <- 0
+  params <- c(params, prcomp(d, center = TRUE,scale. = TRUE))
+}
+
+names(params) <- estados
+
+
+
+
 
 #################### METHOD 2 (DataCamp) ###############
-params.pca <- prcomp(d, center = TRUE,scale. = TRUE)
-summary(params.pca) ###Same results as before
 
-
-## Plot mobility data before and after PCA ##
-png(paste0(path, "Data.jpg"))
-plot(d)
-dev.off()
-png(paste0(path, "DataPCA.jpg"))
-plot(d * Eigen$vectors[1,])
-dev.off()
 
 
 ##########################################
