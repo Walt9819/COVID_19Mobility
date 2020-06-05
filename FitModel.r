@@ -4,8 +4,7 @@ library(magrittr)
 library(ggplot2)
 library(EpiEstim)
 library(incidence)
-install.packages("plyr")
-library(plyr)
+
 path = "Data/"
 set.seed(1)
 mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
@@ -100,16 +99,49 @@ state <- "Queretaro"
 ############ PCA Analysis ################
 ##########################################
 
-# libreria
+# libreria #NO BORRAR PESA MUCHO
+library(devtools)
+install_github("kassambara/factoextra")
+library(factoextra)
 
 # datos
-d <- mobData %>% filter(State == state) %>% select(-c(Date, I, State))
-d[is.na(d)] <- 0
+#d <- mobData %>% filter(State == state) %>% select(-c(Date,I,State))
+#d[is.na(d)] <- 0
 
 
+PoV.states <- data.frame(PoV = c(0), entidad = c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+                    "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
+                    "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
+                    "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas"))
 
-params.pca <- prcomp(d, center = TRUE,scale. = TRUE)
-summary(params.pca) ###Same results as before
+while(i<=33){
+  var1 <- mobData %>% filter(State == (as.character(PoV.states[i,2]))) %>% select(-c(Date,I,State))
+  var1[is.na(d)] <- 0
+  pca.var1 = prcomp(var1, center = TRUE, scale. = TRUE)
+  PoV <- pca.var1$sdev^2/sum(pca.var1$sdev^2)
+  PoV.states[i,1] = PoV
+  i=i+1
+}
+PoV.states[3,1]
+ #PCA
+
+#PC1s = predict(pca.kikis, newdata= mobData)
+#print(PC1s)
+#head(PC1s,4)
+#var <- get_pca_var(params.pca)
+#var
+#STANDART DEVIATION DE SOLO 1 ESTADO 7 componentes principales
+print(pca.var1$sdev)
+#Conversión de arriba a Proportion of Variance
+PoV <- pca.var1$sdev^2/sum(pca.var1$sdev^2)
+#Primer valor (componente principal 1)
+print(PoV[1])
+print(PoV)
+
+
+##################################
+summary(pca.var1) ###Same results as before
+
 
 ## Plot mobility data before and after PCA ##
 png(paste0(path, "Data.jpg"))
