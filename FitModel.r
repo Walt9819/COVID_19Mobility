@@ -5,7 +5,7 @@ library(EpiEstim)
 library(incidence)
 library(zoo) ##importar la librería, por favor ;)
 
-path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
+#path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
 path = "Data/"
 set.seed(1)
 mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
@@ -89,8 +89,8 @@ mobDriv$Driving <- mobDriv$Driving - 100
 ###############################################################
 mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 ###############################################################
-mobData <- na.approx(mobData, fromLast = TRUE) ##solución posible (aunque ya corregí y no debe de haber NA's)
-#mobData[is.na(mobData)] <- 0 #no muy profesional (ni útil)
+#mobData <- na.approx(mobData, fromLast = TRUE) ##solución posible (aunque ya corregí y no debe de haber NA's)
+mobData[is.na(mobData)] <- 0 #no muy profesional (ni útil)
 
 ## Select State ##
 mobData %>% select("State") %>% unique() %>% as.character() ##all states list
@@ -103,21 +103,21 @@ state <- "Queretaro"
 
 # libreria #NO BORRAR PESA MUCHO
 library(devtools)
-install_github("kassambara/factoextra")
+#install_github("kassambara/factoextra")
 library(factoextra)
 
 # datos
 #d <- mobData %>% filter(State == state) %>% select(-c(Date,I,State))
 #d[is.na(d)] <- 0
 
-
+##################### Creación del data frame para el ggplot de los PoV de cada estado ##############
 PoV.states <- data.frame(PoV = c(0), entidad = c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
                     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
                     "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
                     "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas"))
 
 
-####################### Maybe #########################################################
+####################### Solución #########################################################
 PoV.states$entidad <- as.character(PoV.states$entidad)                                #
 for(i in seq(length(PoV.states$entidad))){                                            #
   var1 <- mobData %>% filter(State == PoV.states[i, 2]) %>% select(-c(Date,I,State))  #
@@ -126,44 +126,65 @@ for(i in seq(length(PoV.states$entidad))){                                      
   PoV <- pca.var1$sdev^2/sum(pca.var1$sdev^2) ##tiene dimension N = 7 (todos los PCA) #
   PoV.states[i,1] = PoV[1] ##agarramos únicamente el primero                          #
 }                                                                                     #                                                                                    #
-##################### Looks nice to me ################################################
+##################### gg plot ######## ################################################
 ggplot(PoV.states, aes(x = entidad, y = PoV)) +                                       #
     geom_point(position = position_dodge(width = 0.4)) +                              #
     ylim(0, 1) + theme(axis.text.x = element_text(angle = 90, hjust = 1))             #
                                                                                       #
-#######################################################################################
+################# DATA FRAME DE VECTORES #######################################################
+pca.vectors <- data.frame("Ciudad"=0,"RetailRecreation"=0,"GroceryPharmacy"=0,"Parks"=0,"TransitStations"=0,"Workplaces"=0,"Residential"=0,"Driving"=0)
+for(i in seq(length(PoV.states$entidad))){                                            #
+  varState <- mobData %>% filter(State == PoV.states[i, 2]) %>% select(-c(Date,I,State))  #
+  pca.state = prcomp(varState, center = TRUE, scale. = TRUE)                               #
+  vector_values <- pca.state$rotation
+  named_vector_values <- c(PoV.states[i,2],vector_values[1:7])
+  if(i==1){
+    temp.vector <- rbind(pca.vectors,named_vector_values)
+  }
+  else{temp.vector <- rbind(temp.vector,named_vector_values)}
+  if(i==length(PoV.states$entidad)){
+    pca.vectors <- temp.vector
+    pca.vectors <- pca.vectors[-1,]
 
-
-########### Sorry, aquí está también lo que tenían, por si acaso ################
-while(i<=33){
-  var1 <- mobData %>% filter(State == (as.character(PoV.states[i,2]))) %>% select(-c(Date,I,State))
-  var1[is.na(var1)] <- 0
-  pca.var1 = prcomp(var1, center = TRUE, scale. = TRUE)
-  PoV <- pca.var1$sdev^2/sum(pca.var1$sdev^2)
-  PoV.states[i,1] = PoV
-  i=i+1
+  }
 }
-PoV.states[3,1]
- #PCA
+###################### Una vez creado el dataframe procedemos a obtener los angulos
+#Primero debemos crear la matriz vacía
+angle.matrix <- matrix(0,nrow=33,ncol=33)
+state.names <- c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+                    "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
+                    "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
+                    "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas")
+colnames(angle.matrix) <- state.names
+rownames(angle.matrix) <- state.names
 
+#Luego debemos hacer el for para ir agregando los valores
+for(i in seq(33)){
+  for(j in seq(33)){ #pasando por la matriz...
+
+    angle.matrix[i,j]=temp.angle #Aun no definimos temp.angle, pero al final esa va a ser la accion del for
+  }
+}
+
+                    ########### Intentos anteriores, (uso del while)################
+#while(i<=33){
+#  var1 <- mobData %>% filter(State == (as.character(PoV.states[i,2]))) %>% select(-c(Date,I,State))
+#  var1[is.na(var1)] <- 0
+#  pca.var1 = prcomp(var1, center = TRUE, scale. = TRUE)
+#  PoV <- pca.var1$sdev^2/sum(pca.var1$sdev^2)
+#  PoV.states[i,1] = PoV
+#  i=i+1
+#}
+#PoV.states[3,1]
+ ############################ PCA CON factoextra ##########################################
+
+#pca.kikis <- prcomp(var1, center = TRUE, scale. = TRUE)
 #PC1s = predict(pca.kikis, newdata= mobData)
 #print(PC1s)
 #head(PC1s,4)
-#var <- get_pca_var(params.pca)
+#var <- get_pca_var(pca.kikis)
 #var
-#STANDART DEVIATION DE SOLO 1 ESTADO 7 componentes principales
-print(pca.var1$sdev)
-#Conversión de arriba a Proportion of Variance
-PoV <- pca.var1$sdev^2/sum(pca.var1$sdev^2)
-#Primer valor (componente principal 1)
-print(PoV[1])
-print(PoV)
-
-
-##################################
-summary(pca.var1) ###Same results as before
-
-
+#####################################################################################
 ## Plot mobility data before and after PCA ##
 png(paste0(path, "Data.jpg"))
 plot(d)
