@@ -177,6 +177,8 @@ z.val <- angle.matrix
 
 ########### Create randomized angles for performing Z-value test ##########
 pca.nvectors <- pca.vectors[, 2:length(pca.vectors)]
+
+############## First approach ##################################################
 random.vectors <- matrix(0, nrow=nrow(pca.nvectors), ncol=ncol(pca.nvectors))
 
 ##create all possible [i,j] combinations
@@ -214,6 +216,20 @@ for(i in seq(nrow(random.vectors)-1)){
     angle.inrad <- acos(dot.product / (norm_vec(temp.P) * norm_vec(temp.Q)))
     angle.indeg <- (angle.inrad * 180) / pi ##maybe it is not necessary to do this
     random.matrix[i, j] <- angle.indeg ##just for "human" visualization
+    random.angles <- append(random.angles, angle.indeg) ##all random angles list
+  }
+}
+
+################ Second approach ###############################################
+random.angles = c()
+pca.nvectors2 <- sample(pca.nvectors)
+for(i in seq(nrow(pca.nvectors2)-1)){
+  for(j in seq((i+1), nrow(pca.nvectors2))){
+    temp.P <- as.numeric(pca.nvectors2[i, ])
+    temp.Q <- as.numeric(pca.nvectors2[j, ])
+    dot.product <- sum(temp.P * temp.Q)
+    angle.inrad <- acos(dot.product / (norm_vec(temp.P) * norm_vec(temp.Q)))
+    angle.indeg <- (angle.inrad * 180) / pi ##maybe it is not necessary to do this
     random.angles <- append(random.angles, angle.indeg) ##all random angles list
   }
 }
