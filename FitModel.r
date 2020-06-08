@@ -3,7 +3,7 @@ library(magrittr)
 library(ggplot2)
 library(EpiEstim)
 library(incidence)
-
+library(plotly)
 
 path = "Data/"
 
@@ -72,7 +72,7 @@ mobDriv <- data.frame()
 for (state in seq(nrow(mobAMX)))
 {
   tmp.mobA <- data.frame(State = mobAMX$region[state], Date = names(mobAMX)[2:length(names(mobAMX))], Driving = as.numeric(mobAMX[state, 2:length(mobAMX)]))
-  tmp.mobA$Driving[tmp.mobA$Date %in% c("11.05.2020", "12.05.2020")] <- mean(tmp.mobA$Driving[tmp.mobA$Date %in% c("09.05.2020", "10.05.2020", "13.05.2020", "14.05.2020")])
+  tmp.mobA$Driving[tmp.mobA$Date %in% c("2020.05.11", "2020.05.12")] <- mean(tmp.mobA$Driving[tmp.mobA$Date %in% c("2020.05.09", "2020.05.10", "2020.05.13", "2020.05.14")])
   mobDriv <- rbind(mobDriv, tmp.mobA)
   rm(tmp.mobA)
 }
@@ -91,42 +91,40 @@ mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 mobData %>% select("State") %>% unique() %>% as.character() ##all states list
 
 
-# d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
 # plot(as.incidence(d$I))
 
 ##########################################
 ############ PCA Analysis ################
 ##########################################
 
-#################### METHOD 1 (Eigen method) ###############
-# datos
+#################### PCA por estaddo ###############
 
-params <-  matrix(, nrow=3, byrow=TRUE)
+#Se genera el data frame con tres columnas, la varianza, la entidad, y el vector
+PoV.states <- data.frame(PoV = c(0), entidad = estados)
+PoV.states$Vector <- list(c(1,2,3,4,5,6,7))
+PoV.states$entidad <- as.character(PoV.states$entidad)
+####################### Loop para obtener los valores #########################################################
 
-d <- mobData %>% filter(State == "Querétaro") %>% select(-c(Date, I, State))
-d[is.na(d)] <- 0
-a <- prcomp(d, center = TRUE,scale. = TRUE)
-summary(a)
-
-
-for (state in estados)
-{
-  d <- mobData %>% filter(State == state) %>% select(-c(Date, I, State))
-  d[is.na(d)] <- 0
-  a <- prcomp(d, center = TRUE,scale. = TRUE)
-  params[state] <- a
+for(i in seq(length(PoV.states$entidad))){                                            #
+  var1 <- mobData %>% filter(State == PoV.states[i, 2]) %>% select(-c(Date,I,State))  #
+  ## var1[is.na(d)] <- 0 ¿¿¿ Para qué es esto ??? Chequen línea 92                    #
+  pca.var1 = prcomp(var1, center = TRUE, scale. = TRUE)
+  PoV.states$Vector[[i]] = as.numeric(pca.var1$rotation[,1] )                   #
+  PoV  <- pca.var1$sdev^2/sum(pca.var1$sdev^2) ##tiene dimension N = 7 (todos los PCA) #
+  PoV.states[i,1] = PoV[1] ##agarramos únicamente el primero                          #
 }
+#Cálculo de la proyección de los valores de movilidad de cada día sobre la componente principal
+#Se guarda sobre mobData (data frame que jusnta todos los datos)
+norm_vec <- function(x) sqrt(sum(x^2))
+mobData$PPCA <- rep(0,dim(mobData)[1])
 
-
-
-summary(params["Querétaro"])
-
-
-
-
-#################### METHOD 2 (DataCamp) ###############
-
-
+for (i in 1:dim(mobData)[1]) {
+  PC <- PoV.states[which(PoV.states$entidad==mobData[i,	"State"]),"Vector"]
+  PC <- PC[[1]]
+  mobData$PPCA[i] = as.numeric(mobData[i,4:(dim(mobData)[2]-1)])%*%PC/norm_vec(PC)
+}
+#Agrego una columna para indicar el periodo temporal en el que se encuantra dado día para el calculo de R
+mobData$Period = rep(0,dim(mobData)[1])
 
 ##########################################
 #### R(t) inference from data ############
@@ -156,33 +154,99 @@ fun.estim_rts_uncertain<-function(data,config_gamma)
 
 #-------------------------Parámetros-------------------------------------------
 #Considerando la ultima ventana de 7 dias
-sinceQuarintine <- as.numeric(as.Date("2020-03-23") - as.Date(Dates[1]))
-t_start <- c(2, sinceQuarintine, nrow(d)-7)
-t_end <- c(sinceQuarintine - 1, nrow(d)-8, nrow(d))
+#Además se calcula por estado
+RS <- data.frame(estado = estados)
+RS$RMedia <- list(c(1,2,3))
+RS$estado <- as.character(RS$estado)
+p = list()
+contp = 1
+for (i in estados) {
+  d <- data.frame("dates" = mobData %>% filter(State == i) %>% select(Date), "I" = mobData %>% filter(State == i) %>% select(I))
+  sinceQuarintine <- as.numeric(as.Date("2020-03-23") - as.Date(Dates[1]))
+  t_start <- c(2, sinceQuarintine, nrow(d)-7)
+  t_end <- c(sinceQuarintine - 1, nrow(d)-8, nrow(d))
+  for (j in 1:3) {
+    mobData$Period[mobData$State==i & mobData$Date %in% d$Date[t_start[j]:t_end[j]]] = j
+  }
 
-#Parametros de distribucion Gamma a priori
-#------Parametros de Nishiura
-mean_nish<-4.7
-sd_nish<-2.9
-#------Parametros de Du
-mean_du<-3.96
-sd_du<-4.75
+  #Parametros de distribucion Gamma a priori
+  #------Parametros de Nishiura
+  mean_nish<-4.7
+  sd_nish<-2.9
+  #------Parametros de Du
+  mean_du<-3.96
+  sd_du<-4.75
 
-#--------------------------Uncertain---------------------------------------
-config_nish <- make_config(list(t_start = t_start, t_end = t_end,
-                                mean_si = 4.7, std_mean_si = 1,
-                                min_mean_si = 3.1, max_mean_si = 6.3,
-                                std_si = 2.9, std_std_si = 0.5,
-                                min_std_si = 1.4, max_std_si = 4.4))
+  #--------------------------Uncertain---------------------------------------
+  config_nish <- make_config(list(t_start = t_start, t_end = t_end,
+                                  mean_si = 4.7, std_mean_si = 1,
+                                  min_mean_si = 3.1, max_mean_si = 6.3,
+                                  std_si = 2.9, std_std_si = 0.5,
+                                  min_std_si = 1.4, max_std_si = 4.4))
 
-config_du <- make_config(list(t_start = t_start, t_end = t_end,
-                              mean_si = 3.96, std_mean_si = 1,
-                              min_mean_si = 2.36, max_mean_si = 5.56,
-                              std_si = 4.75, std_std_si = 0.5,
-                              min_std_si = 3.25, max_std_si = 6.25))
+  config_du <- make_config(list(t_start = t_start, t_end = t_end,
+                                mean_si = 3.96, std_mean_si = 1,
+                                min_mean_si = 2.36, max_mean_si = 5.56,
+                                std_si = 4.75, std_std_si = 0.5,
+                                min_std_si = 3.25, max_std_si = 6.25))
+  #calcular r
+
+  rts_control_du= tryCatch(
+    fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du),warning=function(w) {
+      print(i)
+      tmp_r <- fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du)
+      print(p)
+      p[[contp]] <- plot(tmp_r, "R")+ geom_hline(aes(yintercept = 1), color = "red", lty = 2)
+      print(p)
+      contp = contp +1
+      return(tmp_r)
+    }
+  )
+  RS$RMedia[which(RS$estado==i)][[1]] = as.numeric(rts_control_du$R[,"Mean(R)"])
+
+}
+#Finalmente gráficar
+contp
+plot(p[[1]])
+
+
+
+
+
+
+
+fd <- mobData[which(mobData$State=="Querétaro"&mobData$Period!=0),]
+
+mfd <- fd %>% group_by(Period) %>% summarise(MPPCA = mean(PPCA))
+mfd
+
+g <- ggplot(fd ,aes(Period, PPCA)) + geom_point()
+
+g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 1),]$PPCA),color='red')
+g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 2),]$PPCA),color='green')
+g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 3),]$PPCA),color='blue')
+
+g
+
+
+
+fig <-  plot_ly()
+fig <- fig %>%  add_trace(data = fd, x = ~Period, y = ~PPCA, mode = 'markers')
+fig <- fig %>% add_trace(x = mfd$Period, y = mfd$MPPCA, mode = "line")
+fig
+
+
+
+
+
+
+
+
+
+
+
 
 #--------------------------Evaluar R(t)---------------------------------------
-d <- data.frame("dates" = mobData %>% filter(State == state) %>% select(Date), "I" = mobData %>% filter(State == state) %>% select(I))
 
 rts_control_nish=fun.estim_rts_control(d, mean_nish, sd_nish)
 plot(rts_control_nish, "R")+
