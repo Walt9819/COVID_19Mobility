@@ -5,7 +5,7 @@ library(EpiEstim)
 library(incidence)
 library(zoo) ##importar la librería, por favor ;)
 
-path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
+#path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
 path = "Data/"
 set.seed(1)
 mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
@@ -103,7 +103,7 @@ state <- "Queretaro"
 
 # libreria #NO BORRAR PESA MUCHO
 library(devtools)
-install_github("vqv/ggbiplot")
+#install_github("vqv/ggbiplot")
 #install_github("kassambara/factoextra")
 library(factoextra)
 
@@ -133,6 +133,8 @@ ggplot(PoV.states, aes(x = entidad, y = PoV)) +                                 
     ylim(0, 1) + theme(axis.text.x = element_text(angle = 90, hjust = 1))             #
                                                                                       #
 
+ggplot(PoV.states, aes(x = reorder(entidad,-PoV), y = PoV)) +                                       #
+geom_point(position = position_dodge(width = 0.4)) + ylim(0, 1) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ###################### Representación del PCA en Queretaro ###############################
 pca.dataQro <- mobData %>% filter(State == "Queretaro") %>% select(-c(Date,I,State))
 pca.Qro = prcomp(pca.dataQro, center = TRUE, scale. = TRUE)
@@ -158,6 +160,9 @@ for(i in seq(length(PoV.states$entidad))){                                      
 
   }
 }
+pca.vectors.rand <- pca.vectors
+
+
 ###################### Una vez creado el dataframe procedemos a obtener los angulos
 #Primero debemos crear la matriz vacía
 angle.matrix <- matrix(0,nrow=33,ncol=33)
@@ -167,6 +172,8 @@ state.names <- c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes
                     "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas")
 colnames(angle.matrix) <- state.names
 rownames(angle.matrix) <- state.names
+random.matrix <- angle.matrix
+
 #Creacion de magnitudes
 
 #ACTUALIZACION ------> Están normalizados los vectores por lo que la magnitud SIEMPRE será 1
