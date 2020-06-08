@@ -173,16 +173,13 @@ rownames(angle.matrix) <- state.names
 #Esto significa que el cálculo del ángulo se reduce al cos^-1 del producto punto
 
 #Luego debemos hacer el for para ir agregando los valores
-<<<<<<< HEAD
 a <- as.numeric(pca.vectors[1,2:8])
 
 ######### Fill just the upper triangle ###########
 for(i in seq(32)){
-=======
 a <- as.numeric(pca.vectors[1,2:8]) #como sacar un vector del pca.vectors...
 a
 for(i in seq(33)){
->>>>>>> 559a9f4b76bc6c294641d1b3b3fea25774f8b922
 #temp.magnitude <-  sqrt(sum(as.numeric(pca.vectors[i,2:8])^2))
 #magnitude.vectors[i,1] <- temp.magnitude
 
@@ -190,18 +187,9 @@ for(i in seq(33)){
     temp.P <- as.numeric(pca.vectors[i,2:8]) #Definir vectores
     temp.Q <- as.numeric(pca.vectors[j,2:8])
     dot.product <- 0
-      for(k in seq(7)){
-
-        #dot.product(temp.P,temp.Q)
-        dot.product = dot.product + temp.P[k]*temp.Q[k] #Producto punto
-
-<<<<<<< HEAD
-    #  }
     dot.product <- sum(temp.P*temp.Q)
-=======
       }
     #dot.product <- temp.P*temp.Q
->>>>>>> 559a9f4b76bc6c294641d1b3b3fea25774f8b922
     angle.inrad <- acos(dot.product)
     angle.indeg <- (angle.inrad * 180) / pi ##maybe it is not necessary to do this
     angle.matrix[i,j]= angle.inrad #Aun no definimos temp.angle, pero al final esa va a ser la accion del for
