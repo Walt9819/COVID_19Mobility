@@ -87,12 +87,6 @@ mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
 ########### NOW All DATA IS IN ONE DATAFRAME (mobData) #########################
 ################################################################################
 
-## Select State ##
-mobData %>% select("State") %>% unique() %>% as.character() ##all states list
-
-
-# plot(as.incidence(d$I))
-
 ##########################################
 ############ PCA Analysis ################
 ##########################################
@@ -158,8 +152,7 @@ fun.estim_rts_uncertain<-function(data,config_gamma)
 RS <- data.frame(estado = estados)
 RS$RMedia <- list(c(1,2,3))
 RS$estado <- as.character(RS$estado)
-p = list()
-contp = 1
+
 for (i in estados) {
   d <- data.frame("dates" = mobData %>% filter(State == i) %>% select(Date), "I" = mobData %>% filter(State == i) %>% select(I))
   sinceQuarintine <- as.numeric(as.Date("2020-03-23") - as.Date(Dates[1]))
@@ -195,10 +188,7 @@ for (i in estados) {
     fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du),warning=function(w) {
       print(i)
       tmp_r <- fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du)
-      print(p)
-      p[[contp]] <- plot(tmp_r, "R")+ geom_hline(aes(yintercept = 1), color = "red", lty = 2)
-      print(p)
-      contp = contp +1
+      print(plot(tmp_r, "R")+ geom_hline(aes(yintercept = 1), color = "red", lty = 2))
       return(tmp_r)
     }
   )
@@ -206,19 +196,13 @@ for (i in estados) {
 
 }
 #Finalmente gráficar
-contp
-plot(p[[1]])
-
-
-
 
 
 
 
 fd <- mobData[which(mobData$State=="Querétaro"&mobData$Period!=0),]
-
 mfd <- fd %>% group_by(Period) %>% summarise(MPPCA = mean(PPCA))
-mfd
+
 
 g <- ggplot(fd ,aes(Period, PPCA)) + geom_point()
 
@@ -228,11 +212,34 @@ g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 3),]$PPCA),color='blue
 
 g
 
+f <- list(
+  family = "Roboto Slab",
+  size = 18,
+  color = "#000"
+)
+ft <- list(
+  family = "Roboto Slab",
+  size = 20,
+  color = "#000"
+)
 
 
+x <- list(
+  title = "R",
+  titlefont = f
+)
+y <- list(
+  title = "Proy 1°CP",
+  titlefont = f
+)
+t <- list(
+  title = "Querétaro",
+  titlefont = ft
+)
 fig <-  plot_ly()
-fig <- fig %>%  add_trace(data = fd, x = ~Period, y = ~PPCA, mode = 'markers')
-fig <- fig %>% add_trace(x = mfd$Period, y = mfd$MPPCA, mode = "line")
+fig <- fig %>%  add_trace(data = fd, x = ~RS[which(RS$estado=="Querétaro"),"RMedia"][[1]][Period], y = ~PPCA, mode = 'markers',name="Datos")
+fig <- fig %>% add_trace(x = RS[which(RS$estado=="Querétaro"),"RMedia"][[1]][mfd$Period], y = mfd$MPPCA, mode = "line",name="Medias")
+fig <- fig %>% layout(title = "Querétaro",xaxis = x, yaxis = y,font=ft)
 fig
 
 
