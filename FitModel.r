@@ -165,11 +165,12 @@ rownames(angle.matrix) <- state.names
 #Luego debemos hacer el for para ir agregando los valores
 a <- as.numeric(pca.vectors[1,2:8])
 
-for(i in seq(33)){
+######### Fill just the upper triangle ###########
+for(i in seq(32)){
 #temp.magnitude <-  sqrt(sum(as.numeric(pca.vectors[i,2:8])^2))
 #magnitude.vectors[i,1] <- temp.magnitude
 
-  for(j in seq(33)){ #pasando por la matriz...
+  for(j in seq((i+1), 33)){ #pasando por la matriz...
     temp.P <- as.numeric(pca.vectors[i,2:8]) #Definir vectores
     temp.Q <- as.numeric(pca.vectors[j,2:8])
     #dot.product <- 0
@@ -179,12 +180,24 @@ for(i in seq(33)){
         #dot.product = dot.product + temp.P[k]*temp.Q[k] #Producto punto
 
     #  }
-    dot.product <- temp.P*temp.Q
+    dot.product <- sum(temp.P*temp.Q)
     angle.inrad <- acos(dot.product)
-    angle.indeg <- (angle.inrad * 180) / pi
+    angle.indeg <- (angle.inrad * 180) / pi ##maybe it is not necessary to do this
     angle.matrix[i,j]= angle.inrad #Aun no definimos temp.angle, pero al final esa va a ser la accion del for
   }
 }
+
+########### Fill all matrix #############
+for(i in seq(32)){
+  for(j in seq((i+1), 33)){
+    angle.matrix[j,i]= angle.matrix[i, j]
+  }
+}
+
+###### HEATMAP plot (so cool) ###########
+heatmap(angle.matrix, Colv = NA, Rowv = NA, scale="column") ##without R clustering algorithm
+heatmap(angle.matrix) ##with R clustering algorithm
+
 
                     ########### Intentos anteriores, (uso del while)################
 #while(i<=33){
