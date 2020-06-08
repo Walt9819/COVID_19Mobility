@@ -5,7 +5,7 @@ library(EpiEstim)
 library(incidence)
 library(zoo) ##importar la librería, por favor ;)
 
-#path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
+path = "D:\\Documentos\\MT\\Mobility\\MobilityGitHub\\Data\\"
 path = "Data/"
 set.seed(1)
 mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
@@ -175,11 +175,15 @@ rownames(angle.matrix) <- state.names
 #Luego debemos hacer el for para ir agregando los valores
 a <- as.numeric(pca.vectors[1,2:8])
 
-######### Fill just the upper triangle ###########
+################################################################################
+##### No tengo idea qué hace esto ####################
 for(i in seq(32)){
 a <- as.numeric(pca.vectors[1,2:8]) #como sacar un vector del pca.vectors...
-a
-for(i in seq(33)){
+}
+################################################################################
+
+######### Fill just the upper triangle ###########
+for(i in seq(32)){
 #temp.magnitude <-  sqrt(sum(as.numeric(pca.vectors[i,2:8])^2))
 #magnitude.vectors[i,1] <- temp.magnitude
 
@@ -188,7 +192,6 @@ for(i in seq(33)){
     temp.Q <- as.numeric(pca.vectors[j,2:8])
     dot.product <- 0
     dot.product <- sum(temp.P*temp.Q)
-      }
     #dot.product <- temp.P*temp.Q
     angle.inrad <- acos(dot.product)
     angle.indeg <- (angle.inrad * 180) / pi ##maybe it is not necessary to do this
