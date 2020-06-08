@@ -173,22 +173,55 @@ state.names <- c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes
 colnames(angle.matrix) <- state.names
 rownames(angle.matrix) <- state.names
 random.matrix <- angle.matrix
+z.val <- angle.matrix
+
+########### Create randomized angles for performing Z-value test ##########
+pca.nvectors <- pca.vectors[, 2:length(pca.vectors)]
+random.vectors <- matrix(0, nrow=nrow(pca.nvectors), ncol=ncol(pca.nvectors))
+
+##create all possible [i,j] combinations
+combs <- c()
+for (i in seq(ncol(pca.nvectors)))
+  for (j in seq(nrow(pca.nvectors)))
+    combs <- append(combs, list(c(i, j)))
+
+##randomize samples##
+randomTimes <- 2 ##times to random list
+for (i in seq(randomTimes))
+  combs <- sample(combs)
+
+##assign new position in "random.vectors" to "pca.nvectors" variables
+count <- 1
+for (i in seq(nrow(pca.nvectors))){
+  for (j in seq(ncol(pca.nvectors))){
+    newj <- combs[[count]][[1]]
+    newi <- combs[[count]][[2]]
+    random.vectors[newi, newj] = as.numeric(pca.nvectors[i, j])
+    pca.nvectors[i, j]
+    count = count + 1
+  }
+}
+
+##evaluate angles between random variables created
+random.angles = c() ##all random angles
+norm_vec <- function(x) sqrt(sum(x^2))
+## Fill matrix with
+for(i in seq(nrow(random.vectors)-1)){
+  for(j in seq((i+1), nrow(random.vectors))){
+    temp.P <- random.vectors[i, ]
+    temp.Q <- random.vectors[j, ]
+    dot.product <- sum(temp.P * temp.Q)
+    angle.inrad <- acos(dot.product / (norm_vec(temp.P) * norm_vec(temp.Q)))
+    angle.indeg <- (angle.inrad * 180) / pi ##maybe it is not necessary to do this
+    random.matrix[i, j] <- angle.indeg ##just for "human" visualization
+    random.angles <- append(random.angles, angle.indeg) ##all random angles list
+  }
+}
 
 #Creacion de magnitudes
 
 #ACTUALIZACION ------> Están normalizados los vectores por lo que la magnitud SIEMPRE será 1
 #Esto significa que el cálculo del ángulo se reduce al cos^-1 del producto punto
-
-#Luego debemos hacer el for para ir agregando los valores
-a <- as.numeric(pca.vectors[1,2:8])
-
-################################################################################
-##### No tengo idea qué hace esto ####################
-for(i in seq(32)){
-a <- as.numeric(pca.vectors[1,2:8]) #como sacar un vector del pca.vectors...
-}
-################################################################################
-
 ######### Fill just the upper triangle ###########
 for(i in seq(32)){
 #temp.magnitude <-  sqrt(sum(as.numeric(pca.vectors[i,2:8])^2))
@@ -203,6 +236,7 @@ for(i in seq(32)){
     angle.inrad <- acos(dot.product)
     angle.indeg <- (angle.inrad * 180) / pi ##maybe it is not necessary to do this
     angle.matrix[i,j]= angle.inrad #Aun no definimos temp.angle, pero al final esa va a ser la accion del for
+    z.val[i, j] = (angle.indeg - mean(random.angles) / sd(random.angles))
   }
 }
 
@@ -210,12 +244,16 @@ for(i in seq(32)){
 for(i in seq(32)){
   for(j in seq((i+1), 33)){
     angle.matrix[j,i]= angle.matrix[i, j]
+    z.val[j, i] = z.val[i, j]
   }
 }
 
 ###### HEATMAP plot (so cool) ###########
 heatmap(angle.matrix, Colv = NA, Rowv = NA, scale="column") ##without R clustering algorithm
 heatmap(angle.matrix) ##with R clustering algorithm
+
+library(gplots)
+heatmap.2(z.val)
 
 
                     ########### Intentos anteriores, (uso del while)################
