@@ -103,6 +103,7 @@ state <- "Queretaro"
 
 # libreria #NO BORRAR PESA MUCHO
 library(devtools)
+install_github("vqv/ggbiplot")
 #install_github("kassambara/factoextra")
 library(factoextra)
 
@@ -131,6 +132,15 @@ ggplot(PoV.states, aes(x = entidad, y = PoV)) +                                 
     geom_point(position = position_dodge(width = 0.4)) +                              #
     ylim(0, 1) + theme(axis.text.x = element_text(angle = 90, hjust = 1))             #
                                                                                       #
+
+###################### Representación del PCA en Queretaro ###############################
+pca.dataQro <- mobData %>% filter(State == "Queretaro") %>% select(-c(Date,I,State))
+pca.Qro = prcomp(pca.dataQro, center = TRUE, scale. = TRUE)
+summary(pca.Qro)
+library(ggbiplot)
+
+ggbiplot(pca.Qro)
+
 ################# DATA FRAME DE VECTORES #######################################################
 pca.vectors <- data.frame("Ciudad"=0,"RetailRecreation"=0,"GroceryPharmacy"=0,"Parks"=0,"TransitStations"=0,"Workplaces"=0,"Residential"=0,"Driving"=0)
 for(i in seq(length(PoV.states$entidad))){                                            #
@@ -163,8 +173,8 @@ rownames(angle.matrix) <- state.names
 #Esto significa que el cálculo del ángulo se reduce al cos^-1 del producto punto
 
 #Luego debemos hacer el for para ir agregando los valores
-a <- as.numeric(pca.vectors[1,2:8])
-
+a <- as.numeric(pca.vectors[1,2:8]) #como sacar un vector del pca.vectors...
+a
 for(i in seq(33)){
 #temp.magnitude <-  sqrt(sum(as.numeric(pca.vectors[i,2:8])^2))
 #magnitude.vectors[i,1] <- temp.magnitude
@@ -172,14 +182,14 @@ for(i in seq(33)){
   for(j in seq(33)){ #pasando por la matriz...
     temp.P <- as.numeric(pca.vectors[i,2:8]) #Definir vectores
     temp.Q <- as.numeric(pca.vectors[j,2:8])
-    #dot.product <- 0
-    #  for(k in seq(7)){
+    dot.product <- 0
+      for(k in seq(7)){
 
-    #    dot.product(temp.P,temp.Q)
-        #dot.product = dot.product + temp.P[k]*temp.Q[k] #Producto punto
+        #dot.product(temp.P,temp.Q)
+        dot.product = dot.product + temp.P[k]*temp.Q[k] #Producto punto
 
-    #  }
-    dot.product <- temp.P*temp.Q
+      }
+    #dot.product <- temp.P*temp.Q
     angle.inrad <- acos(dot.product)
     angle.indeg <- (angle.inrad * 180) / pi
     angle.matrix[i,j]= angle.inrad #Aun no definimos temp.angle, pero al final esa va a ser la accion del for
