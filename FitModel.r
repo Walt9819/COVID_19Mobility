@@ -157,12 +157,32 @@ state.names <- c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes
                     "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas")
 colnames(angle.matrix) <- state.names
 rownames(angle.matrix) <- state.names
+#Creacion de magnitudes
+
+#ACTUALIZACION ------> Están normalizados los vectores por lo que la magnitud SIEMPRE será 1
+#Esto significa que el cálculo del ángulo se reduce al cos^-1 del producto punto
 
 #Luego debemos hacer el for para ir agregando los valores
-for(i in seq(33)){
-  for(j in seq(33)){ #pasando por la matriz...
+a <- as.numeric(pca.vectors[1,2:8])
 
-    angle.matrix[i,j]=temp.angle #Aun no definimos temp.angle, pero al final esa va a ser la accion del for
+for(i in seq(33)){
+#temp.magnitude <-  sqrt(sum(as.numeric(pca.vectors[i,2:8])^2))
+#magnitude.vectors[i,1] <- temp.magnitude
+
+  for(j in seq(33)){ #pasando por la matriz...
+    temp.P <- as.numeric(pca.vectors[i,2:8]) #Definir vectores
+    temp.Q <- as.numeric(pca.vectors[j,2:8])
+    #dot.product <- 0
+    #  for(k in seq(7)){
+
+    #    dot.product(temp.P,temp.Q)
+        #dot.product = dot.product + temp.P[k]*temp.Q[k] #Producto punto
+
+    #  }
+    dot.product <- temp.P*temp.Q
+    angle.inrad <- acos(dot.product)
+    angle.indeg <- (angle.inrad * 180) / pi
+    angle.matrix[i,j]= angle.inrad #Aun no definimos temp.angle, pero al final esa va a ser la accion del for
   }
 }
 
