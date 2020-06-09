@@ -16,6 +16,7 @@ estados <- c("Estados Unidos Mexicanos", "Aguascalientes", "Baja California", "B
                                               "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Ciudad de México",
                                               "Michoacán", "Morelos", "Nayarit", "Nuevo León", "Oaxaca", "Puebla", "Querétaro", "Quintana Roo", "San Luis Potosí",
                                               "Sinaloa", "Sonora", "México", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatán", "Zacatecas")
+
 mob$sub_region_1 <- as.character(mob$sub_region_1)
 mob$sub_region_1 <- enc2utf8(mob$sub_region_1)
 mob$date <- as.Date(mob$date, format="%Y-%m-%d")
@@ -152,13 +153,13 @@ fun.estim_rts_uncertain<-function(data,config_gamma)
 RS <- data.frame(estado = estados)
 RS$RMedia <- list(c(1,2,3))
 RS$estado <- as.character(RS$estado)
-
+RS$RStd<- list(c(1,2,3))
+sinceQuarintine <- as.numeric(as.Date("2020-03-23") - as.Date(Dates[1]))
 for (i in estados) {
   d <- data.frame("dates" = mobData %>% filter(State == i) %>% select(Date), "I" = mobData %>% filter(State == i) %>% select(I))
-  sinceQuarintine <- as.numeric(as.Date("2020-03-23") - as.Date(Dates[1]))
   t_start <- c(2, sinceQuarintine, nrow(d)-7)
   t_end <- c(sinceQuarintine - 1, nrow(d)-8, nrow(d))
-  for (j in 1:3) {
+  for (j in 1:length(t_start)) {
     mobData$Period[mobData$State==i & mobData$Date %in% d$Date[t_start[j]:t_end[j]]] = j
   }
 
@@ -186,44 +187,23 @@ for (i in estados) {
 
   rts_control_du= tryCatch(
     fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du),warning=function(w) {
-      print(i)
+      #print(i)
       tmp_r <- fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du)
-      print(plot(tmp_r, "R")+ geom_hline(aes(yintercept = 1), color = "red", lty = 2))
+      #print(plot(tmp_r, "R")+ geom_hline(aes(yintercept = 1), color = "red", lty = 2))
       return(tmp_r)
     }
   )
   RS$RMedia[which(RS$estado==i)][[1]] = as.numeric(rts_control_du$R[,"Mean(R)"])
+  RS$RStd[which(RS$estado==i)][[1]] = as.numeric(rts_control_du$R[,'Std(R)'])
 
 }
 #Finalmente gráficar
-
-
-
-
-fd <- mobData[which(mobData$State=="Querétaro"&mobData$Period!=0),]
-mfd <- fd %>% group_by(Period) %>% summarise(MPPCA = mean(PPCA))
-
-
-g <- ggplot(fd ,aes(Period, PPCA)) + geom_point()
-
-g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 1),]$PPCA),color='red')
-g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 2),]$PPCA),color='green')
-g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 3),]$PPCA),color='blue')
-
-g
 
 f <- list(
   family = "Roboto Slab",
   size = 18,
   color = "#000"
 )
-ft <- list(
-  family = "Roboto Slab",
-  size = 20,
-  color = "#000"
-)
-
-
 x <- list(
   title = "R",
   titlefont = f
@@ -232,24 +212,170 @@ y <- list(
   title = "Proy 1°CP",
   titlefont = f
 )
-t <- list(
-  title = "Querétaro",
-  titlefont = ft
+fig <- plot_ly()
+lay.UpdateMenus <- list()
+for (i in estados) {
+  datosEstado <- mobData[which(mobData$State==i&mobData$Period!=0),]
+  datosMeanEstado <- datosEstado %>% group_by(Period) %>% summarise(MPPCA = mean(PPCA),sd = sd(PPCA))
+
+  x_datos <- RS[which(RS$estado==i),"RMedia"][[1]][datosEstado$Period]
+  x_mean <-RS[which(RS$estado==i),"RMedia"][[1]][datosMeanEstado$Period]
+
+  y_datos <- datosEstado$PPCA
+  y_mean <- datosMeanEstado$MPPCA
+
+  y_error <- datosMeanEstado$sd
+
+  y_sdl <- datosMeanEstado$MPPCA-datosMeanEstado$sd
+  y_sdh <- datosMeanEstado$MPPCA+datosMeanEstado$sd
+
+  x_error <- RS[which(RS$estado==i),"RStd"][[1]][datosMeanEstado$Period]
+
+  fig <- fig %>% add_trace(
+    mode = 'lines',
+    type="scatter",
+    y = y_sdl[c(1,2)],
+    x = x_mean[c(1,2)],
+    showlegend = FALSE,
+    name="Error1L",
+    visible = FALSE,
+    line = list(
+      color = 'rgba(0,0,0,0)'
+    )
+  )
+  fig <- fig %>% add_trace(
+    mode = 'lines',
+    type="scatter",
+    y = y_sdh[c(1,2)],
+    x = x_mean[c(1,2)],
+    fill = 'tonexty',
+    fillcolor='rgba(0,0,0,.1)',
+    showlegend = FALSE,
+    name="Error1S",
+    visible = FALSE,
+    line = list(
+      color = 'rgba(0,0,0,0)'
+    )
+  )
+  fig <- fig %>% add_trace(
+    mode = 'lines',
+    type="scatter",
+    y = y_sdl[c(2,3)],
+    x = x_mean[c(2,3)],
+    showlegend = FALSE,
+    name="Error2L",
+    visible = FALSE,
+    line = list(
+      color = 'rgba(0,0,0,0)'
+    )
+  )
+  fig <- fig %>% add_trace(
+    mode = 'lines',
+    type="scatter",
+    y = y_sdh[c(2,3)],
+    x = x_mean[c(2,3)],
+    showlegend = FALSE,
+    fill = 'tonexty',
+    fillcolor='rgba(0,120,12,.2)',
+    name="Error2S",
+    visible = FALSE,
+    line = list(
+      color = 'rgba(0,0,0,0)'
+    )
+  )
+
+
+  fig <- fig %>%  add_trace(
+    x = x_datos,
+    y = y_datos,
+    type = 'scatter',
+    mode = 'markers',
+    name="Datos",
+    visible = FALSE,
+    marker = list(
+      color = '#1f77b4'
+    )
+  )
+  fig <- fig %>% add_trace(
+    x =x_mean,
+    y = y_mean,
+    type = 'scatter',
+    mode = "lines+markers",
+    name="Medias",
+    visible = FALSE,
+    line = list(
+      color = '#ff7f0e'
+    ),
+    marker = list(
+      color = '#ff7f0e'
+    ),
+    error_y = list(
+      type = "data",
+      array = y_error,
+      color = 'black'
+    ),
+    error_x =  list(
+      type = "data",
+      array = x_error,
+      color = 'red'
+    )
+  )
+
+
+  lay.UpdateMenus[[length(lay.UpdateMenus)+1]] <- list(
+    method = "restyle",
+    args = list("visible",rep(estados,each=6) == i),
+    label = i
+
+  )
+
+}
+fig <- fig %>% layout(
+  xaxis = x,
+  yaxis = y,
+  updatemenus = list(
+      list(
+        y = 0.7,
+        buttons = lay.UpdateMenus
+      )
+  )
 )
-fig <-  plot_ly()
-fig <- fig %>%  add_trace(data = fd, x = ~RS[which(RS$estado=="Querétaro"),"RMedia"][[1]][Period], y = ~PPCA, mode = 'markers',name="Datos")
-fig <- fig %>% add_trace(x = RS[which(RS$estado=="Querétaro"),"RMedia"][[1]][mfd$Period], y = mfd$MPPCA, mode = "line",name="Medias")
-fig <- fig %>% layout(title = "Querétaro",xaxis = x, yaxis = y,font=ft)
 fig
 
 
 
 
+# fd <- mobData[which(mobData$State=="Querétaro"&mobData$Period!=0),]
+# mfd <- fd %>% group_by(Period) %>% summarise(MPPCA = mean(PPCA))
+#
+#
+#
+#
+# fig <-  plot_ly()
+# fig <- fig %>%  add_trace(data = fd, x = ~RS[which(RS$estado=="Querétaro"),"RMedia"][[1]][Period], y = ~PPCA, mode = 'markers',name="Datos")
+# fig <- fig %>% add_trace(x = RS[which(RS$estado=="Querétaro"),"RMedia"][[1]][mfd$Period], y = mfd$MPPCA, mode = "line",name="Medias")
+# fig <- fig %>% layout(
+#   title = t,
+#   xaxis = x,
+#   yaxis = y,
+# )
+# fig
 
 
 
 
 
+
+
+
+#
+# g <- ggplot(fd ,aes(Period, PPCA)) + geom_point()
+#
+# g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 1),]$PPCA),color='red')
+# g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 2),]$PPCA),color='green')
+# g <-g  + geom_hline(yintercept=mean(fd[which(fd$Period == 3),]$PPCA),color='blue')
+#
+# g
 
 
 
