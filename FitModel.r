@@ -5,15 +5,15 @@ library(EpiEstim)
 library(incidence)
 library(zoo)
 library(plotly)
+library(gplots)
 
 path = "Data/"
-
 
 set.seed(1)
 mob <- read.csv("Data/GlobalMobilityReport.csv")
 mob <- mob %>% filter(country_region_code == "MX")
 states <- unique(mob$sub_region_1)
-estados <- c("Estados Unidos Mexicanos", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+estados <- c("Nacional", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
                                               "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco", "Ciudad de Mexico",
                                               "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
                                               "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas")
@@ -34,7 +34,7 @@ file.entidades <- data.frame(id = c(seq(1, 32), 36, 97, 98, 99), entidad = c("Ag
                                               "Chiapas", "Chihuahua", "Ciudad de Mexico", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
                                               "Mexico", "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
                                               "Sinaloa", "Sonora", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan",
-                                              "Zacatecas", "Estados Unidos Mexicanos", "No aplica",
+                                              "Zacatecas", "Nacional", "No aplica",
                                               "Se ignora", "No Especificado"))
 
 #file.entidades <- read.csv(paste0(path, "entidades.csv"))
@@ -62,7 +62,7 @@ for (enti in seq(length(unique(ndat$ENTIDAD_RES)))){
 for (enti in seq(length(unique(ndat$ENTIDAD_RES)))){
   ndat$ENTIDAD_RES[ndat$ENTIDAD_RES == file.entidades[enti, 1]] <- file.entidades[enti, 2]
 }
-ndat <- as.data.frame(rbind(ndat, data.frame(ndat %>% group_by(FECHA_SINTOMAS) %>% summarise("I" = sum(I)), ENTIDAD_RES = "Estados Unidos Mexicanos")))
+ndat <- as.data.frame(rbind(ndat, data.frame(ndat %>% group_by(FECHA_SINTOMAS) %>% summarise("I" = sum(I)), ENTIDAD_RES = "Nacional")))
 names(ndat) <- c("Date", "State", "I")
 
 ###############################################################
@@ -73,7 +73,7 @@ mobA <- read.csv(paste0(path, "GlobalMobilityApple.csv"))
 mobA <- mobA %>% filter(region == "Mexico" | (country == "Mexico")) %>% filter(transportation_type == "driving")
 mobAMX <- mobA %>% filter(geo_type %in% c("sub-region", "country/region") | region == "Mexico City")
 mobAMX <- mobAMX %>% select(-c(geo_type, transportation_type, alternative_name, sub.region, country))
-mobAMX$region <- c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+mobAMX$region <- c("Nacional", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
                     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
                     "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
                     "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas")
@@ -116,7 +116,7 @@ library(factoextra)
 #d[is.na(d)] <- 0
 
 ##################### Creación del data frame para el ggplot de los PoV de cada estado ##############
-PoV.states <- data.frame(PoV = c(0), entidad = c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+PoV.states <- data.frame(PoV = c(0), entidad = c("Nacional", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
                     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
                     "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
                     "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas"))
@@ -137,8 +137,10 @@ ggplot(PoV.states, aes(x = entidad, y = PoV)) +                                 
     ylim(0, 1) + theme(axis.text.x = element_text(angle = 90, hjust = 1))             #
                                                                                       #
 
+png(filename = "Results/pov.png", width = 1080, height = 1080, units = "px", pointsize = 12, bg = "transparent")
 ggplot(PoV.states, aes(x = reorder(entidad,-PoV), y = PoV)) +                                       #
-geom_point(position = position_dodge(width = 0.4)) + ylim(0, 1) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  geom_point(position = position_dodge(width = 0.4)) + ylim(0, 1) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+dev.off()
 ###################### Representación del PCA en Queretaro ###############################
 pca.dataQro <- mobData %>% filter(State == "Queretaro") %>% select(-c(Date,I,State))
 pca.Qro = prcomp(pca.dataQro, center = TRUE, scale. = TRUE)
@@ -169,7 +171,7 @@ for(i in seq(length(PoV.states$entidad))){                                      
 ###################### Una vez creado el dataframe procedemos a obtener los angulos
 #Primero debemos crear la matriz vacía
 angle.matrix <- matrix(0,nrow=33,ncol=33)
-state.names <- c("Estados Unidos Mexicanos", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
+state.names <- c("Nacional", "Ciudad de Mexico", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
                     "Chihuahua", "Coahuila", "Colima", "Durango", "Guanajuato", "Guerrero", "Hidalgo", "Jalisco",
                     "Michoacan", "Morelos", "Nayarit", "Nuevo Leon", "Oaxaca", "Puebla", "Queretaro", "Quintana Roo", "San Luis Potosi",
                     "Sinaloa", "Sonora", "Mexico", "Tabasco", "Tamaulipas", "Tlaxcala", "Veracruz", "Yucatan", "Zacatecas")
@@ -180,6 +182,8 @@ z.val <- angle.matrix
 
 ########### Create randomized angles for performing Z-value test ##########
 pca.nvectors <- pca.vectors[, 2:length(pca.vectors)]
+
+norm_vec <- function(x) sqrt(sum(x^2))
 
 random.angles = c()
 pca.nvectors2 <- sample(pca.nvectors)
@@ -193,8 +197,6 @@ for(i in seq(nrow(pca.nvectors2)-1)){
     random.angles <- append(random.angles, angle.indeg) ##all random angles list
   }
 }
-
-#Creacion de magnitudes
 
 #ACTUALIZACION ------> Están normalizados los vectores por lo que la magnitud SIEMPRE será 1
 #Esto significa que el cálculo del ángulo se reduce al cos^-1 del producto punto
@@ -228,8 +230,14 @@ for(i in seq(32)){
 heatmap(angle.matrix, Colv = NA, Rowv = NA, scale="column") ##without R clustering algorithm
 heatmap(angle.matrix) ##with R clustering algorithm
 
-library(gplots)
-heatmap.2(z.val)
+png(filename = "Results/angle_heatmap.png", width = 1080, height = 1080, units = "px", pointsize = 12, bg = "transparent")
+heatmap.2(angle.matrix, trace = "none", margins = c(7, 7), offsetRow = 0.1, offsetCol = 0.1)
+dev.off()
+
+png(filename = "Results/zvalue_heatmap.png", width = 1080, height = 1080, units = "px", pointsize = 12, bg = "transparent")
+heatmap.2(z.val, trace = "none", margins = c(7, 7), offsetRow = 0.1, offsetCol = 0.1)
+dev.off()
+
 
 
 
@@ -252,7 +260,6 @@ for(i in seq(length(PoVR.states$entidad))){                                     
 }
 #Cálculo de la proyección de los valores de movilidad de cada día sobre la componente principal
 #Se guarda sobre mobData (data frame que jusnta todos los datos)
-norm_vec <- function(x) sqrt(sum(x^2))
 mobData$PPCA <- rep(0,dim(mobData)[1])
 
 for (i in 1:dim(mobData)[1]) {
@@ -273,8 +280,7 @@ mobData$Period = rep(0,dim(mobData)[1])
 ##########################################
 #-------------------------Funciones-------------------------------------------
 #Funcion para estimar R_t con ventanas disjuntas
-fun.estim_rts_control<-function(d,t_st,t_e,mean_gamma,sd_gamma)
-{
+fun.estim_rts_control<-function(d,t_st,t_e,mean_gamma,sd_gamma){
   rts_control <- estimate_R(d,
                          method="parametric_si",
                          config = make_config(list(
@@ -287,8 +293,8 @@ fun.estim_rts_control<-function(d,t_st,t_e,mean_gamma,sd_gamma)
 }
 
 #Funcion para estimar R_t con ventanas disjuntas
-fun.estim_rts_uncertain<-function(data,config_gamma)
-{ rts_uncertain <- estimate_R(data,
+fun.estim_rts_uncertain<-function(data,config_gamma){
+  rts_uncertain <- estimate_R(data,
                               method = "uncertain_si",
                               config = config_gamma)
   return(rts_uncertain)
