@@ -10,7 +10,7 @@ path = "Data/"
 
 
 set.seed(1)
-mob <- read.csv(paste0(path, "GlobalMobilityReport.csv"))
+mob <- read.csv("Data/GlobalMobilityReport.csv")
 mob <- mob %>% filter(country_region_code == "MX")
 states <- unique(mob$sub_region_1)
 estados <- c("Estados Unidos Mexicanos", "Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas",
@@ -21,14 +21,13 @@ mob$sub_region_1 <- as.character(mob$sub_region_1)
 mob$sub_region_1 <- enc2utf8(mob$sub_region_1)
 mob$date <- as.Date(mob$date, format="%Y-%m-%d")
 
+
 for (state in seq(length(states))){
   mob$sub_region_1[mob$sub_region_1 == states[state]] <- estados[state]
 }
 
 
-
-
-names(mob) <- c("Country Code", "Country", "State", "SubState", "Date", "RetailRecreation", "GroceryPharmacy", "Parks", "TransitStations", "Workplaces", "Residential")
+names(mob)<- c("Country Code", "Country", "State", "SubState", "Metro Area", "ISOCode", "CensusCODE", "Date", "RetailRecreation", "GroceryPharmacy", "Parks", "TransitStations", "Workplaces", "Residential")
 mob <- mob %>% select(Date, State, RetailRecreation, GroceryPharmacy, Parks, TransitStations, Workplaces, Residential)
 Dates <- c(min(mob$Date), max(mob$Date))
 file.entidades <- data.frame(id = c(seq(1, 32), 36, 97, 98, 99), entidad = c("Aguascalientes", "Baja California", "Baja California Sur", "Campeche","Coahuila", "Colima",
@@ -41,10 +40,11 @@ file.entidades <- data.frame(id = c(seq(1, 32), 36, 97, 98, 99), entidad = c("Ag
 #file.entidades <- read.csv(paste0(path, "entidades.csv"))
 file.entidades$entidad <- as.character(file.entidades$entidad)
 #file.entidades$entidad <- enc2utf8(file.entidades$entidad)
-totdata <- read.csv(paste0(path, "TotalMX.csv"))
+totdata <- read.csv("Data/TotalMX.csv")
 totdata$FECHA_ACTUALIZACION = as.Date(totdata$FECHA_ACTUALIZACION, format="%Y-%m-%d")
 totdata$FECHA_INGRESO = as.Date(totdata$FECHA_INGRESO, format="%Y-%m-%d")
 totdata$FECHA_SINTOMAS = as.Date(totdata$FECHA_SINTOMAS, format="%Y-%m-%d")
+totdata$ENTIDAD_RES <- as.character(totdata$ENTIDAD_RES)
 ndat <- totdata %>% group_by(FECHA_SINTOMAS, ENTIDAD_RES) %>% filter(RESULTADO == 1 & FECHA_SINTOMAS >= Dates[1] & FECHA_SINTOMAS <= Dates[2]) %>% summarise("I" = n()) %>% select(FECHA_SINTOMAS, ENTIDAD_RES, I)
 ndat <- ndat %>% filter(ENTIDAD_RES <= 32)
 days <- seq(as.Date(Dates[1]), as.Date(Dates[2]), 1)
@@ -91,9 +91,11 @@ mobDriv$Driving <- mobDriv$Driving - 100
 
 ###############################################################
 mobData <- merge(mobData, mobDriv, by = c("Date", "State"))
+mobData <- na.omit(mobData)
+
+
 ###############################################################
-#mobData <- na.approx(mobData, fromLast = TRUE) ##solución posible (aunque ya corregí y no debe de haber NA's)
-mobData[is.na(mobData)] <- 0 #no muy profesional (ni útil)
+#mobData <- na.approx(mobData, fromLast = TRUE) ##solución posible (aunque ya corregí y no debe de haber NA's) #no muy profesional (ni útil)
 
 ################################################################################
 ########### NOW All DATA IS IN ONE DATAFRAME (mobData) #########################
@@ -229,7 +231,12 @@ heatmap(angle.matrix) ##with R clustering algorithm
 library(gplots)
 heatmap.2(z.val)
 
+
+
+#########################33
 ##### Inicia parte René
+########################3333
+
 PoVR.states <- data.frame(PoV = c(0), entidad = estados)
 PoVR.states$Vector <- list(c(1,2,3,4,5,6,7))
 PoVR.states$entidad <- as.character(PoVR.states$entidad)
@@ -291,14 +298,14 @@ fun.estim_rts_uncertain<-function(data,config_gamma)
 #Considerando la ultima ventana de 7 dias
 #Además se calcula por estado
 RS <- data.frame(estado = estados)
-RS$RMedia <- list(c(1,2,3))
+RS$RMedia <- list(c(1,2,3,4,5))
 RS$estado <- as.character(RS$estado)
-RS$RStd<- list(c(1,2,3))
+RS$RStd<- list(c(1,2,3,4,5))
 sinceQuarintine <- as.numeric(as.Date("2020-03-23") - as.Date(Dates[1]))
 for (i in estados) {
   d <- data.frame("dates" = mobData %>% filter(State == i) %>% select(Date), "I" = mobData %>% filter(State == i) %>% select(I))
-  t_start <- c(2, sinceQuarintine, nrow(d)-7)
-  t_end <- c(sinceQuarintine - 1, nrow(d)-8, nrow(d))
+  t_start <- c(2, sinceQuarintine,floor(nrow(d)/3), floor(nrow(d)*2/3),nrow(d)-7)
+  t_end <- c(sinceQuarintine - 1,floor(nrow(d)/3)-1,floor(nrow(d)*2/3)-1,nrow(d)-8, nrow(d))
   for (j in 1:length(t_start)) {
     mobData$Period[mobData$State==i & mobData$Date %in% d$Date[t_start[j]:t_end[j]]] = j
   }
@@ -327,17 +334,34 @@ for (i in estados) {
 
   rts_control_du= tryCatch(
     fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du),warning=function(w) {
-      #print(i)
+      print(i)
+      print(w)
       tmp_r <- fun.estim_rts_control(d, t_start, t_end, mean_du, sd_du)
       #print(plot(tmp_r, "R")+ geom_hline(aes(yintercept = 1), color = "red", lty = 2))
       return(tmp_r)
     }
   )
+  
+  if(i=="Queretaro"){
+    png(file="r_queretaro.png",
+    width=600, height=350)
+    print(plot(rts_control_du, "R")+ geom_hline(aes(yintercept = 1), color = "red", lty = 2))
+    dev.off()
+  }
+  if(i=="Estados Unidos Mexicanos"){
+    png(file="r_nacional.png",
+        width=600, height=350)
+    print(plot(rts_control_du, "R")+ geom_hline(aes(yintercept = 1), color = "red", lty = 2))
+    dev.off()
+  }
   RS$RMedia[which(RS$estado==i)][[1]] = as.numeric(rts_control_du$R[,"Mean(R)"])
   RS$RStd[which(RS$estado==i)][[1]] = as.numeric(rts_control_du$R[,'Std(R)'])
 
 }
 #Finalmente gráficar
+
+
+
 
 f <- list(
   family = "Roboto Slab",
@@ -349,12 +373,14 @@ x <- list(
   titlefont = f
 )
 y <- list(
-  title = "Proy 1°CP",
+  title = "Índice Movilidad",
   titlefont = f
 )
-fig <- plot_ly()
-lay.UpdateMenus <- list()
-for (i in estados) {
+
+if (!require("processx")) install.packages("processx")
+i="Queretaro"
+  fig <- plot_ly()
+
   datosEstado <- mobData[which(mobData$State==i&mobData$Period!=0),]
   datosMeanEstado <- datosEstado %>% group_by(Period) %>% summarise(MPPCA = mean(PPCA),sd = sd(PPCA))
 
@@ -371,58 +397,58 @@ for (i in estados) {
 
   x_error <- RS[which(RS$estado==i),"RStd"][[1]][datosMeanEstado$Period]
 
-  fig <- fig %>% add_trace(
-    mode = 'lines',
-    type="scatter",
-    y = y_sdl[c(1,2)],
-    x = x_mean[c(1,2)],
-    showlegend = FALSE,
-    name="Error1L",
-    visible = FALSE,
-    line = list(
-      color = 'rgba(0,0,0,0)'
-    )
-  )
-  fig <- fig %>% add_trace(
-    mode = 'lines',
-    type="scatter",
-    y = y_sdh[c(1,2)],
-    x = x_mean[c(1,2)],
-    fill = 'tonexty',
-    fillcolor='rgba(0,0,0,.1)',
-    showlegend = FALSE,
-    name="Error1S",
-    visible = FALSE,
-    line = list(
-      color = 'rgba(0,0,0,0)'
-    )
-  )
-  fig <- fig %>% add_trace(
-    mode = 'lines',
-    type="scatter",
-    y = y_sdl[c(2,3)],
-    x = x_mean[c(2,3)],
-    showlegend = FALSE,
-    name="Error2L",
-    visible = FALSE,
-    line = list(
-      color = 'rgba(0,0,0,0)'
-    )
-  )
-  fig <- fig %>% add_trace(
-    mode = 'lines',
-    type="scatter",
-    y = y_sdh[c(2,3)],
-    x = x_mean[c(2,3)],
-    showlegend = FALSE,
-    fill = 'tonexty',
-    fillcolor='rgba(0,120,12,.2)',
-    name="Error2S",
-    visible = FALSE,
-    line = list(
-      color = 'rgba(0,0,0,0)'
-    )
-  )
+  # fig <- fig %>% add_trace(
+  #   mode = 'lines',
+  #   type="scatter",
+  #   y = y_sdl[c(1,2)],
+  #   x = x_mean[c(1,2)],
+  #   showlegend = FALSE,
+  #   name="Error1L",
+  #   visible = TRUE,
+  #   line = list(
+  #     color = 'rgba(0,0,0,0)'
+  #   )
+  # )
+  # fig <- fig %>% add_trace(
+  #   mode = 'lines',
+  #   type="scatter",
+  #   y = y_sdh[c(1,2)],
+  #   x = x_mean[c(1,2)],
+  #   fill = 'tonexty',
+  #   fillcolor='rgba(0,0,0,.1)',
+  #   showlegend = FALSE,
+  #   name="Error1S",
+  #   visible = TRUE,
+  #   line = list(
+  #     color = 'rgba(0,0,0,0)'
+  #   )
+  # )
+  # fig <- fig %>% add_trace(
+  #   mode = 'lines',
+  #   type="scatter",
+  #   y = y_sdl[c(2,3)],
+  #   x = x_mean[c(2,3)],
+  #   showlegend = FALSE,
+  #   name="Error2L",
+  #   visible = TRUE,
+  #   line = list(
+  #     color = 'rgba(0,0,0,0)'
+  #   )
+  # )
+  # fig <- fig %>% add_trace(
+  #   mode = 'lines',
+  #   type="scatter",
+  #   y = y_sdh[c(2,3)],
+  #   x = x_mean[c(2,3)],
+  #   showlegend = FALSE,
+  #   fill = 'tonexty',
+  #   fillcolor='rgba(0,120,12,.2)',
+  #   name="Error2S",
+  #   visible = TRUE,
+  #   line = list(
+  #     color = 'rgba(0,0,0,0)'
+  #   )
+  # )
 
 
   fig <- fig %>%  add_trace(
@@ -431,7 +457,7 @@ for (i in estados) {
     type = 'scatter',
     mode = 'markers',
     name="Datos",
-    visible = FALSE,
+    visible = TRUE,
     marker = list(
       color = '#1f77b4'
     )
@@ -442,7 +468,7 @@ for (i in estados) {
     type = 'scatter',
     mode = "lines+markers",
     name="Medias",
-    visible = FALSE,
+    visible = TRUE,
     line = list(
       color = '#ff7f0e'
     ),
@@ -460,27 +486,71 @@ for (i in estados) {
       color = 'red'
     )
   )
-
-
-  lay.UpdateMenus[[length(lay.UpdateMenus)+1]] <- list(
-    method = "restyle",
-    args = list("visible",rep(estados,each=6) == i),
-    label = i
-
+  fig <- fig %>% layout(
+    xaxis = x,
+    yaxis = y
+    # title = list(
+    #   pad = list(t = 30,b = 30, l = 30, r = 30 ),
+    #   text = i,
+    #   font=list(
+    #     family = "Roboto Slab",
+    #     size = 20,
+    #     color = "#000"
+    #   )
+    # )
   )
+ # orca(fig, paste("Results/index5_r_",i,".png"))
+
+
+
+for(i in estados){
+
+  datosE = mobData %>% filter(State==i)
+  png(file=paste("Results/index_t_",i,".png"),
+  width=600, height=350)
+  plot(datosE$PPCA~datosE$Date,
+    xlab="Fecha", ylab="Índice movilidad",
+  )
+  abline(v = as.Date("2020-03-23"), col="red")
+  dev.off()
+
+
 
 }
-fig <- fig %>% layout(
-  xaxis = x,
-  yaxis = y,
-  updatemenus = list(
-      list(
-        y = 0.7,
-        buttons = lay.UpdateMenus
-      )
-  )
-)
-fig
+
+queretaroCaso <- function(){
+datosEstado <- mobData[which(mobData$State=="Queretaro"&mobData$Period!=0&mobData$Period!=3),]
+datosMeanEstado <- datosEstado %>% group_by(Period) %>% summarise(MPPCA = mean(PPCA),sd = sd(PPCA))
+x <- RS[which(RS$estado==i),"RMedia"][[1]][datosMeanEstado$Period]
+
+
+pen <- (-datosMeanEstado[2,'MPPCA']+datosMeanEstado[1,'MPPCA'])/(-x[2]+x[1])
+
+ pen*.9 +265.1555
+
+aaaa <- datosEstado %>% filter(Date == max(Date))%>% select(RetailRecreation,	GroceryPharmacy,	Parks,	TransitStations,	Workplaces,	Residential,	Driving)
+
+aaaa[1,-c(6)] <- aaaa[1,-c(6)]-20
+
+PC <- PoVR.states[which(PoVR.states$entidad=="Queretaro"),"Vector"]
+PC <- PC[[1]]
+PC
+aaaa
+
+bbbb<- as.numeric(aaaa)%*%PC/norm_vec(PC)
+bbbb
+
+
+
+
+
+datosEstado %>% select(I,	RetailRecreation,	GroceryPharmacy,	Parks,	TransitStations,	Workplaces,	Residential,	Driving)
+}
+
+
+
+
+PoVR.states
 
 
 #--------------------------Evaluar R(t)---------------------------------------
